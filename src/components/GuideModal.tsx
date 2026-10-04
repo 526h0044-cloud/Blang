@@ -356,37 +356,37 @@ blang main.bl`}
             <Code2 className="w-4 h-4" />
             <span>Chương 4</span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Cú Pháp Cơ Bản &amp; Khai Báo Biến Trực Tiếp</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Cú Pháp Chuẩn Python &amp; Khai Báo Biến Trực Tiếp</h2>
           <p className="text-sm text-slate-300 leading-relaxed">
-            Trong BLang, biến được khai báo <strong>trực tiếp bằng phép gán</strong> (<code className="font-mono text-indigo-300 bg-slate-800 px-1 rounded">tên = giá trị;</code>).
-            Ngôn ngữ <strong>hoàn toàn không dùng từ khóa <code className="font-mono text-rose-400 bg-slate-800 px-1 rounded">let</code></strong>.
-            Các ký tự định danh đặc biệt được khuyên dùng để tăng tính trực quan:
+            Trong BLang, cú pháp khai báo biến <strong>hoàn toàn giống Python</strong>: khai báo trực tiếp bằng phép gán (<code className="font-mono text-indigo-300 bg-slate-800 px-1 rounded">tên = giá trị;</code>).
+            Ngôn ngữ <strong>không cần từ khóa <code className="font-mono text-rose-400 bg-slate-800 px-1 rounded">let</code> hay <code className="font-mono text-rose-400 bg-slate-800 px-1 rounded">var</code></strong>.
+            Bạn có thể đặt tên biến thuần túy như trong Python, hoặc tùy chọn sử dụng các tiền tố đặc biệt nếu muốn:
           </p>
 
           <ul className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs font-mono text-slate-300">
             <li className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-              <span className="text-amber-400 font-bold block mb-1">@name = 100;</span>
-              <span className="text-slate-400 font-sans">Tiền tố @ biểu diễn biến số (Numeric/Metric)</span>
+              <span className="text-sky-400 font-bold block mb-1">score = 100;</span>
+              <span className="text-slate-400 font-sans">Khai báo trực tiếp chuẩn Python (tùy chọn @score)</span>
             </li>
             <li className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-              <span className="text-emerald-400 font-bold block mb-1">$title = "BLang";</span>
-              <span className="text-slate-400 font-sans">Tiền tố $ biểu diễn biến chuỗi (String/Text)</span>
+              <span className="text-emerald-400 font-bold block mb-1">name = "BLang";</span>
+              <span className="text-slate-400 font-sans">Chuỗi ký tự thuần phong cách Python (tùy chọn $name)</span>
             </li>
             <li className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-              <span className="text-purple-400 font-bold block mb-1">_counter = 0;</span>
-              <span className="text-slate-400 font-sans">Tiền tố _ biểu diễn biến tạm thời / vòng lặp (Temporary)</span>
+              <span className="text-purple-400 font-bold block mb-1">is_active = True;</span>
+              <span className="text-slate-400 font-sans">Giá trị logic True, False, None tương thích 100%</span>
             </li>
           </ul>
 
           <CodeSnippet
-            title="Ví dụ khai báo biến sạch sẽ"
-            code={`// 1. Khai báo biến trực tiếp (không dùng let)
-@score = 1500;
-$player_name = "Kaelen Voss";
-_level = 12;
-$is_active = true;
+            title="Ví dụ khai báo biến chuẩn phong cách Python"
+            code={`# 1. Khai báo biến trực tiếp (chuẩn Python, không cần let)
+score = 1500;
+player_name = "Kaelen Voss";
+level = 12;
+is_active = True;
 
-print("Player:", $player_name, "| Level:", _level, "| Score:", @score);`}
+print("Player:", player_name, "| Level:", level, "| Score:", score);`}
             output="Player: Kaelen Voss | Level: 12 | Score: 1500"
             onLoadSnippet={onLoadSnippet}
           />

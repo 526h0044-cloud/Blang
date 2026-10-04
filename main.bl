@@ -1,39 +1,45 @@
 // ==============================================================================
 // BLang Main Application File (main.bl)
-// Clean Variable Declaration Syntax: biến = giá trị (KHÔNG CẦN let)
+// Cú pháp khai báo biến chuẩn phong cách Python: trực tiếp, không cần let/var
 // ==============================================================================
 
 import "math_lib.bl";
 
-// 1. Khai báo biến trực tiếp (không cần let)
-@app_name = "BLang Native Application";
-$version_id = 1.0;
-_launch_ticks = 0;
+# 1. Khai báo biến trực tiếp giống hệt Python (gán giá trị tự động định nghĩa)
+app_name = "BLang Native Application";
+version_id = 1.0;
+launch_ticks = 0;
+is_production = True;
 
-// 2. Định nghĩa hàm và giá trị trả về
-function initialize_system($agent_name, @rank) {
-    _greeting = "Welcome, Commander ";
-    print(">>> Initializing system for:", $agent_name, "| Clearance Level:", @rank);
-    @boost = power(2, 4); // Gọi hàm power() từ math_lib.bl
-    print(">>> Calculated Core Boost (2^4 = 16):", @boost);
-    return @boost + 100;
+# 2. Định nghĩa hàm và giá trị trả về
+function initialize_system(agent_name, rank) {
+    greeting = "Welcome, Commander ";
+    print(">>> Initializing system for:", agent_name, "| Clearance Level:", rank);
+    boost = power(2, 4); # Sử dụng hàm power() từ math_lib.bl
+    print(">>> Calculated Core Boost (2^4 = 16):", boost);
+    return boost + 100;
 }
 
-// 3. Thực thi logic
-$agent = "Kaelen Voss";
-@clearance = 5;
-$final_power = initialize_system($agent, @clearance);
+# 3. Thực thi Pipeline
+agent = "Kaelen Voss";
+clearance = 5;
+final_power = initialize_system(agent, clearance);
 
-print(">>> System status fully calibrated! Output power level:", $final_power);
+print(">>> System status fully calibrated! Output power level:", final_power);
 
-// 4. Vòng lặp duyệt danh sách
-@sensors = ["Thermal Sensor", "Graviton Detector", "Quantum Radar"];
-for (sensor in @sensors) {
+# 4. Nối chuỗi linh hoạt (Dynamic Typing & Coercion)
+status_log = "Agent " + agent + " authorized with power ";
+status_log += final_power;
+print(">>> Status Log:", status_log);
+
+# 5. Danh sách mảng và vòng lặp for-in
+sensors = ["Thermal Sensor", "Graviton Detector", "Quantum Radar"];
+for (sensor in sensors) {
     print(">>> Online sensor unit:", sensor);
 }
 
-// 5. Tính năng sinh số ngẫu nhiên: %random(a, b)%
-@lucky_seed = %random(10, 99)%;
-print(">>> Generated Security Token Seed (%random(10, 99)%):", @lucky_seed);
+# 6. Tính năng sinh số ngẫu nhiên: %random(a, b)%
+lucky_seed = %random(10, 99)%;
+print(">>> Generated Security Token Seed (%random(10, 99)%):", lucky_seed);
 
 print(">>> Application main.bl executed with 100% integrity.");

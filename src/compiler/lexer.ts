@@ -14,7 +14,9 @@ const KEYWORDS: Record<string, TokenType> = {
   or: 'or',
   not: 'not',
   true: 'true',
+  True: 'true',
   false: 'false',
+  False: 'false',
   break: 'break',
   continue: 'continue',
   input: 'input',
@@ -24,6 +26,8 @@ const KEYWORDS: Record<string, TokenType> = {
   let: 'let',
   in: 'in',
   null: 'NULL',
+  None: 'NULL',
+  none: 'NULL',
 };
 
 export class Lexer {

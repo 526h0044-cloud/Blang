@@ -13,72 +13,71 @@ export const PRESETS: CodePreset[] = [
     description: 'Khai báo biến trực tiếp (không dùng let), hàm, return, danh sách, từ điển, logic (not/and/or), vòng lặp, break/continue',
     code: `// ==============================================================================
 // BLang Comprehensive Demonstration & Test Script
-// - Khai báo biến trực tiếp: biến = giá trị (KHÔNG DÙNG let)
+// - Khai báo biến chuẩn phong cách Python: biến = giá trị (KHÔNG CẦN let/var)
 // - Hàm với tham số và return
 // - Danh sách & Từ điển
-// - Strict types, logic boolean (not, and, or)
+// - Logic boolean (not, and, or, True, False)
 // - Vòng lặp với break và continue
 // - Constant folding: (10 * 5) + 2 tính trước ở compile time
 // ==============================================================================
 
-// 1. Khai báo biến với ký tự đặc biệt (@, $, _)
-@base_score = 100;
-$player_name = "Nova Commander";
-_counter = 0;
-$is_mission_active = true;
-@hazard_level = 0;
+# 1. Khai báo biến trực tiếp chuẩn phong cách Python
+base_score = 100;
+player_name = "Nova Commander";
+counter = 0;
+is_mission_active = True;
+hazard_level = 0;
 
-// 2. Hàm có tham số, phạm vi cục bộ và return
-function calculate_boost(@base, $multiplier) {
-    _bonus = 25;
-    _subtotal = (@base * $multiplier);
-    return _subtotal + _bonus;
+# 2. Hàm có tham số, phạm vi cục bộ và return
+function calculate_boost(base, multiplier) {
+    bonus = 25;
+    subtotal = (base * multiplier);
+    return subtotal + bonus;
 }
 
-// 3. Danh sách và Từ điển
-@inventory = ["quantum_core", "shield_matrix", "plasma_drive"];
-$ship_stats = {
+# 3. Danh sách và Từ điển
+inventory = ["quantum_core", "shield_matrix", "plasma_drive"];
+ship_stats = {
     "hull": 500,
     "shields": 250,
-    "warp_ready": true
+    "warp_ready": True
 };
 
-// 4. Constant Folding Demonstration: (10 * 5) + 2 -> 52
-_optimized_constant = (10 * 5) + 2;
+# 4. Constant Folding Demonstration: (10 * 5) + 2 -> 52
+optimized_constant = (10 * 5) + 2;
 
-// 5. Logic điều kiện phức hợp: not, and, or
-if (not (@hazard_level > 2) and ($is_mission_active or @base_score > 50)) {
-    print(">>> System Status: GREEN. Welcome aboard,", $player_name);
-    $boosted = calculate_boost(@base_score, 2);
-    print(">>> Boosted Score Total (Expected 225):", $boosted);
-} elseif (@base_score == 0) {
+# 5. Logic điều kiện phức hợp: not, and, or
+if (not (hazard_level > 2) and (is_mission_active or base_score > 50)) {
+    print(">>> System Status: GREEN. Welcome aboard,", player_name);
+    boosted = calculate_boost(base_score, 2);
+    print(">>> Boosted Score Total (Expected 225):", boosted);
+} elseif (base_score == 0) {
     print(">>> Critical alert: Score is zero!");
 } else {
     print(">>> System in standby mode.");
 }
 
-// 6. Vòng lặp while với continue và break
+# 6. Vòng lặp while với continue và break
 print("--- Starting Diagnostics Loop ---");
-while (_counter < 10) {
-    _counter += 1;
-    if (_counter == 3) {
-        // Bỏ qua lần lặp 3
+while (counter < 10) {
+    counter += 1;
+    if (counter == 3) {
         continue;
     }
-    if (_counter == 7) {
-        print(">>> Loop encountered threshold at counter:", _counter);
+    if (counter == 7) {
+        print(">>> Loop encountered threshold at counter:", counter);
         break;
     }
 }
 
-// 7. Vòng lặp for-in
+# 7. Vòng lặp for-in
 print("--- Scanning Inventory Systems ---");
-for (item in @inventory) {
+for (item in inventory) {
     print(">>> Detected component:", item);
 }
 
-// 8. Xuất kết quả Constant Folding
-print(">>> Constant folding verification (Expected 52):", _optimized_constant);
+# 8. Xuất kết quả Constant Folding
+print(">>> Constant folding verification (Expected 52):", optimized_constant);
 print(">>> BLang test program completed successfully!");
 `,
   },

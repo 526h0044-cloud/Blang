@@ -170,7 +170,9 @@ KEYWORDS: Dict[str, str] = {
     "or":       TokenType.OR,
     "not":      TokenType.NOT,
     "true":     TokenType.TRUE,
+    "True":     TokenType.TRUE,
     "false":    TokenType.FALSE,
+    "False":    TokenType.FALSE,
     "break":    TokenType.BREAK,
     "continue": TokenType.CONTINUE,
     "input":    TokenType.INPUT,
@@ -180,6 +182,8 @@ KEYWORDS: Dict[str, str] = {
     "let":      TokenType.LET,
     "in":       TokenType.IN,
     "null":     TokenType.NULL,
+    "None":     TokenType.NULL,
+    "none":     TokenType.NULL,
 }
 
 
@@ -2531,7 +2535,10 @@ class Interpreter:
                     self.current_env.set(node.target.name, val)
                 elif node.operator == "+=":
                     cur = self.current_env.get(node.target.name, node.line, node.col)
-                    self.current_env.set(node.target.name, cur + val)
+                    if isinstance(cur, str) or isinstance(val, str):
+                        self.current_env.set(node.target.name, str(cur) + str(val))
+                    else:
+                        self.current_env.set(node.target.name, cur + val)
                 elif node.operator == "-=":
                     cur = self.current_env.get(node.target.name, node.line, node.col)
                     self.current_env.set(node.target.name, cur - val)
@@ -2541,7 +2548,10 @@ class Interpreter:
                 if node.operator == "=":
                     tgt[idx] = val
                 elif node.operator == "+=":
-                    tgt[idx] = tgt[idx] + val
+                    if isinstance(tgt[idx], str) or isinstance(val, str):
+                        tgt[idx] = str(tgt[idx]) + str(val)
+                    else:
+                        tgt[idx] = tgt[idx] + val
                 elif node.operator == "-=":
                     tgt[idx] = tgt[idx] - val
             return val

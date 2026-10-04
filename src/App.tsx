@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { EditorPane } from './components/EditorPane';
 import { FileExplorer, BLangFile } from './components/FileExplorer';
@@ -25,6 +25,7 @@ import {
   Cpu,
   Activity,
   Variable,
+  ShieldAlert,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -33,46 +34,47 @@ const INITIAL_FILES: BLangFile[] = [
     name: 'main.bl',
     content: `// ==============================================================================
 // BLang Main Application File (main.bl)
-// Programming Language File format: {file.bl}
+// Cú pháp khai báo biến chuẩn phong cách Python: trực tiếp, không cần let/var
 // ==============================================================================
 
 import "math_lib.bl";
 
-// 1. Khai báo biến trực tiếp (không dùng let)
-@app_name = "BLang Native Application";
-$version_id = 1.0;
-_launch_ticks = 0;
+# 1. Khai báo biến trực tiếp giống hệt Python (gán giá trị tự động định nghĩa)
+app_name = "BLang Native Application";
+version_id = 1.0;
+launch_ticks = 0;
+is_production = True;
 
-// 2. Custom Functions and Return Values
-function initialize_system($agent_name, @rank) {
-    _greeting = "Welcome, Commander ";
-    print(">>> Initializing system for:", $agent_name, "| Clearance Level:", @rank);
-    @boost = power(2, 4); // Uses power() from math_lib.bl
-    print(">>> Calculated Core Boost (2^4 = 16):", @boost);
-    return @boost + 100;
+# 2. Định nghĩa hàm và giá trị trả về
+function initialize_system(agent_name, rank) {
+    greeting = "Welcome, Commander ";
+    print(">>> Initializing system for:", agent_name, "| Clearance Level:", rank);
+    boost = power(2, 4); // Sử dụng hàm power() từ math_lib.bl
+    print(">>> Calculated Core Boost (2^4 = 16):", boost);
+    return boost + 100;
 }
 
-// 3. Execution Pipeline
-$agent = "Kaelen Voss";
-@clearance = 5;
-$final_power = initialize_system($agent, @clearance);
+# 3. Thực thi Pipeline
+agent = "Kaelen Voss";
+clearance = 5;
+final_power = initialize_system(agent, clearance);
 
-print(">>> System status fully calibrated! Output power level:", $final_power);
+print(">>> System status fully calibrated! Output power level:", final_power);
 
-// 4. Dynamic String Concatenation & Coercion
-$status_log = "Agent " + $agent + " authorized with power ";
-$status_log += $final_power;
-print(">>>", $status_log);
+# 4. Nối chuỗi linh hoạt (Dynamic Typing & Coercion)
+status_log = "Agent " + agent + " authorized with power ";
+status_log += final_power;
+print(">>> Status Log:", status_log);
 
-// 5. Data Collection Loops
-@sensors = ["Thermal Sensor", "Graviton Detector", "Quantum Radar"];
-for (sensor in @sensors) {
+# 5. Danh sách mảng và vòng lặp for-in
+sensors = ["Thermal Sensor", "Graviton Detector", "Quantum Radar"];
+for (sensor in sensors) {
     print(">>> Online sensor unit:", sensor);
 }
 
-// 6. Tính năng sinh số ngẫu nhiên: %random(a, b)%
-@lucky_seed = %random(10, 99)%;
-print(">>> Generated Security Token Seed (%random(10, 99)%):", @lucky_seed);
+# 6. Tính năng sinh số ngẫu nhiên: %random(a, b)%
+lucky_seed = %random(10, 99)%;
+print(">>> Generated Security Token Seed (%random(10, 99)%):", lucky_seed);
 
 print(">>> Application main.bl executed with 100% integrity.");
 `,
@@ -241,6 +243,64 @@ export default function App() {
   const [activeStageTab, setActiveStageTab] = useState<'console' | 'runtime' | 'metrics' | 'codegen' | 'ast' | 'symbols' | 'tokens'>('console');
   const [presetId, setPresetId] = useState<string>('comprehensive');
   const [isDownloadSdkOpen, setIsDownloadSdkOpen] = useState(false);
+  const [protectedToast, setProtectedToast] = useState<string | null>(null);
+
+  // Web protection against F12 and Right-Click (DevTools Protection)
+  useEffect(() => {
+    let timer: any = null;
+    const triggerProtection = (msg: string) => {
+      setProtectedToast(msg);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setProtectedToast(null);
+      }, 3000);
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      triggerProtection('Chế độ bảo vệ: Thao tác chuột phải đã bị vô hiệu hóa.');
+      return false;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F12
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerProtection('Chế độ bảo vệ: Phím F12 (DevTools) đã bị vô hiệu hóa.');
+        return false;
+      }
+
+      // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (Inspect/Console/DevTools)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        ['i', 'I', 'j', 'J', 'c', 'C', 'k', 'K'].includes(e.key)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerProtection('Chế độ bảo vệ: Phím tắt DevTools/Inspect đã bị vô hiệu hóa.');
+        return false;
+      }
+
+      // Ctrl+U (View Source)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerProtection('Chế độ bảo vệ: Xem mã nguồn (Ctrl+U) đã bị vô hiệu hóa.');
+        return false;
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu, true);
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu, true);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
 
   // Active file content
   const activeFile = useMemo(() => {
@@ -794,6 +854,27 @@ export default function App() {
         isOpen={isDownloadSdkOpen}
         onClose={() => setIsDownloadSdkOpen(false)}
       />
+
+      {/* DevTools & Right-Click Security Toast Notification */}
+      <AnimatePresence>
+        {protectedToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-900/95 border border-rose-500/40 text-slate-100 shadow-2xl shadow-rose-950/40 backdrop-blur-md pointer-events-none"
+          >
+            <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+              <ShieldAlert className="w-4 h-4" />
+            </div>
+            <div className="text-xs">
+              <span className="font-semibold text-rose-300 block">{protectedToast}</span>
+              <span className="text-[10px] text-slate-400">Hệ thống bảo vệ bản quyền BLang Studio</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

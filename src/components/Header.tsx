@@ -24,9 +24,9 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems = [
     { id: 'workbench', label: 'Workbench & Pipeline', icon: Cpu },
     { id: 'repl', label: 'Interactive REPL Shell', icon: Terminal },
-    { id: 'guide', label: 'Tài Liệu & Hướng Dẫn', icon: BookOpen },
-    { id: 'metrics', label: 'Hiệu Năng & So Sánh (Python/JS)', icon: Activity },
-    { id: 'python-source', label: 'compiler.py Source', icon: FileCode },
+    { id: 'guide', label: 'Tài liệu', icon: BookOpen },
+    { id: 'metrics', label: 'Hiệu năng & so sánh', icon: Activity },
+    { id: 'python-source', label: 'Source', icon: FileCode },
   ] as const;
 
   return (

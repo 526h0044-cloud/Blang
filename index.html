@@ -4,12 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script>
-      // Safeguard for window.fetch in iframe environments where fetch might have only a getter
+      // Fix for "Cannot set property fetch of #<Window> which has only a getter"
+      // Ensures window.fetch has both getter and setter so iframe wrappers and polyfills can assign to window.fetch safely
       (function() {
         try {
-          var _fetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : undefined;
-          var getter = function() { return _fetch; };
-          var setter = function(fn) { _fetch = fn; };
+          var _rawFetch = typeof window !== 'undefined' ? window.fetch : undefined;
+          var _currentFetch = typeof _rawFetch === 'function' ? _rawFetch.bind(window) : undefined;
+          var getter = function() { return _currentFetch; };
+          var setter = function(fn) { _currentFetch = fn; };
+
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                get: getter,
+                set: setter,
+                configurable: true,
+                enumerable: true
+              });
+            } catch (_) {}
+          }
+
           try {
             Object.defineProperty(window, 'fetch', {
               get: getter,
@@ -18,16 +32,37 @@
               enumerable: true
             });
           } catch (_) {}
-          try {
-            if (typeof Window !== 'undefined' && Window.prototype) {
-              Object.defineProperty(Window.prototype, 'fetch', {
-                get: getter,
-                set: setter,
-                configurable: true,
-                enumerable: true
-              });
+        } catch (_) {}
+      })();
+
+      // Protection against F12, right-click, and DevTools inspection
+      (function() {
+        try {
+          window.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+          }, true);
+
+          window.addEventListener('keydown', function(e) {
+            // F12 key
+            if (e.key === 'F12' || e.keyCode === 123) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
             }
-          } catch (_) {}
+            // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (Inspect/Console/DevTools)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }
+            // Ctrl+U (View Source)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }
+          }, true);
         } catch (_) {}
       })();
     </script>

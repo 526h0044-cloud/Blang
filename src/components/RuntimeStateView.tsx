@@ -150,9 +150,9 @@ export const RuntimeStateView: React.FC<RuntimeStateViewProps> = ({
       };
     }
     return {
-      label: 'var',
-      color: 'bg-slate-700/50 text-slate-400 border-slate-600/30',
-      desc: 'Định danh chuẩn',
+      label: 'py-var',
+      color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+      desc: 'Biến chuẩn phong cách Python',
     };
   };
 
@@ -384,7 +384,7 @@ export const RuntimeStateView: React.FC<RuntimeStateViewProps> = ({
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            Số (@)
+            Số (Number)
           </button>
           <button
             onClick={() => setTypeFilter('string')}
@@ -394,7 +394,7 @@ export const RuntimeStateView: React.FC<RuntimeStateViewProps> = ({
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            Chuỗi ($)
+            Chuỗi (String)
           </button>
           <button
             onClick={() => setTypeFilter('collection')}
@@ -404,7 +404,7 @@ export const RuntimeStateView: React.FC<RuntimeStateViewProps> = ({
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            Mảng / Map
+            Mảng / Dict
           </button>
         </div>
       </div>
