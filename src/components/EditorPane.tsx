@@ -190,10 +190,10 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             </select>
           </div>
 
-          {/* Format Code Button */}
+          {/* Prettify Code Button */}
           <button
             onClick={handleFormat}
-            title="Định dạng lại mã nguồn BLang: tự động căn thụt dòng và khoảng cách (Ctrl+Shift+F)"
+            title="Prettify Code: Tự động định dạng mã nguồn BLang với thụt lề chuẩn, khoảng cách và ngoặc khối (Ctrl+Shift+F)"
             className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded transition-all cursor-pointer shadow-sm ${
               formatted
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
@@ -203,12 +203,12 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
             {formatted ? (
               <>
                 <Check className="w-3 h-3 text-emerald-400" />
-                <span>Đã định dạng!</span>
+                <span>Đã làm đẹp!</span>
               </>
             ) : (
               <>
                 <Wand2 className="w-3 h-3 text-indigo-400" />
-                <span className="font-semibold">Format Code</span>
+                <span className="font-semibold">Prettify Code</span>
               </>
             )}
           </button>

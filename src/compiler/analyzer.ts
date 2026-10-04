@@ -203,20 +203,7 @@ export class SemanticAnalyzer {
               col: assign.col,
             });
           } else {
-            // Strict compound assignment check
-            if (assign.operator === '+=' || assign.operator === '-=') {
-              if (
-                (sym.type === 'string' && valType === 'number') ||
-                (sym.type === 'number' && valType === 'string')
-              ) {
-                throw {
-                  stage: 'semantic',
-                  message: `Illegal compound assignment '${assign.operator}' between string variable '${sym.name}' and number. BLang strictly prohibits string-number arithmetic coercion.`,
-                  line: assign.line,
-                  col: assign.col,
-                };
-              }
-            }
+            // Flexible dynamic assignment without strict type blocking
             if (valType !== 'unknown') {
               sym.type = valType;
             }
@@ -427,17 +414,9 @@ export class SemanticAnalyzer {
 
       case 'UnaryOp': {
         const un = node as UnaryOpNode;
-        const sub = this.inferType(un.operand);
+        this.inferType(un.operand);
         if (un.operator === 'not') return 'boolean';
         if (un.operator === '-' || un.operator === '+') {
-          if (sub === 'string') {
-            throw {
-              stage: 'semantic',
-              message: `Illegal unary operator '${un.operator}' on string operand. Mathematical operations on strings are strictly prohibited.`,
-              line: un.line,
-              col: un.col,
-            };
-          }
           return 'number';
         }
         return 'any';
@@ -449,46 +428,26 @@ export class SemanticAnalyzer {
         const tRight = this.inferType(bin.right);
         const op = bin.operator;
 
-        // Arithmetic operators: +, -, *, /, %
+        // Dynamic typing for operators: +, -, *, /, %
         if (['+', '-', '*', '/', '%'].includes(op)) {
           const isLeftStr = tLeft === 'string';
           const isRightStr = tRight === 'string';
           const isLeftNum = tLeft === 'number';
           const isRightNum = tRight === 'number';
 
-          // STRICT TYPE SAFETY: String cannot participate in math (+, -, *, /, %) with Number
-          if ((isLeftStr && isRightNum) || (isLeftNum && isRightStr)) {
-            let leftDesc = `'${tLeft}'`;
-            if (bin.left.type === 'Identifier') leftDesc = `variable '${(bin.left as IdentifierNode).name}' (type '${tLeft}')`;
-            else if (bin.left.type === 'Literal') leftDesc = `literal '${(bin.left as LiteralNode).value}' (type '${tLeft}')`;
-
-            let rightDesc = `'${tRight}'`;
-            if (bin.right.type === 'Identifier') rightDesc = `variable '${(bin.right as IdentifierNode).name}' (type '${tRight}')`;
-            else if (bin.right.type === 'Literal') rightDesc = `literal '${(bin.right as LiteralNode).value}' (type '${tRight}')`;
-
-            throw {
-              stage: 'semantic',
-              message: `Illegal arithmetic operation '${op}' between ${leftDesc} and ${rightDesc}. BLang enforces strict type safety: strings and numbers CANNOT be combined in arithmetic operations.`,
-              line: bin.line,
-              col: bin.col,
-            };
-          }
-
-          if (['-', '*', '/', '%'].includes(op) && (isLeftStr || isRightStr)) {
-            throw {
-              stage: 'semantic',
-              message: `Illegal mathematical operator '${op}' applied to string. Strings only support string formatting or standard function calls, not math arithmetic.`,
-              line: bin.line,
-              col: bin.col,
-            };
-          }
-
-          if (isLeftStr && isRightStr && op === '+') {
-            return 'string';
+          // In flexible dynamic typing, addition involving a string coerces to string concatenation
+          if (op === '+') {
+            if (isLeftStr || isRightStr) {
+              return 'string';
+            }
+            if (isLeftNum && isRightNum) {
+              return 'number';
+            }
+            return 'any';
           }
 
           if (isLeftNum && isRightNum) return 'number';
-          return isLeftNum || isRightNum ? 'number' : 'any';
+          return 'number';
         }
 
         if (['==', '!=', '<', '<=', '>', '>='].includes(op)) return 'boolean';

@@ -151,6 +151,29 @@ echo "Test now: \${BIN_DIR}/blang --version"
 `;
       zip.file('install.sh', installSh, { unixPermissions: '755' });
 
+      // 3.5 Cross-Platform setup_blang.py installer
+      const setupBlangPy = `#!/usr/bin/env python3
+"""BLang Automated Setup Script"""
+import sys, os, shutil, subprocess
+print("BLang Language Runtime & CLI Installer v1.0.0")
+if sys.version_info < (3, 8):
+    print("Error: Python 3.8+ required."); sys.exit(1)
+home = os.path.expanduser("~/.blang")
+bin_dir = os.path.join(home, "bin")
+lib_dir = os.path.join(home, "lib")
+os.makedirs(bin_dir, exist_ok=True); os.makedirs(lib_dir, exist_ok=True)
+cur = os.path.dirname(os.path.abspath(__file__))
+if os.path.exists(os.path.join(cur, "bin", "compiler.py")):
+    shutil.copy2(os.path.join(cur, "bin", "compiler.py"), os.path.join(lib_dir, "compiler.py"))
+if os.path.exists(os.path.join(cur, "bin", "blang")):
+    shutil.copy2(os.path.join(cur, "bin", "blang"), os.path.join(bin_dir, "blang"))
+    os.chmod(os.path.join(bin_dir, "blang"), 0o755)
+print(f"[+] Installed BLang locally to {home}")
+print(f"[+] Add to PATH: export PATH=\\"{bin_dir}:\$PATH\\"")
+print("Run 'blang --version' to test.")
+`;
+      zip.file('setup_blang.py', setupBlangPy, { unixPermissions: '755' });
+
       // 4. Sample Starter App: main.bl
       const mainBl = `// ==============================================================================
 // BLang Starter Application (main.bl)
@@ -372,7 +395,7 @@ Chúc bạn có những trải nghiệm lập trình tuyệt vời cùng BLang!
               <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-900/40 border border-slate-800/80">
                 <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold shrink-0 text-[11px]">2</span>
                 <div>
-                  <strong className="text-slate-200">Chạy file cài đặt:</strong> Mở Terminal trong thư mục và gõ <code className="text-emerald-400">./install.sh</code> (hoặc gõ trực tiếp <code className="text-emerald-400">./bin/blang run examples/main.bl</code>).
+                  <strong className="text-slate-200">Chạy file cài đặt tự động:</strong> Mở Terminal/Command Prompt trong thư mục và gõ <code className="text-emerald-400 font-mono font-semibold">python3 setup_blang.py</code> (hoặc chạy <code className="text-emerald-400 font-mono">./bin/blang run examples/main.bl</code>).
                 </div>
               </div>
 

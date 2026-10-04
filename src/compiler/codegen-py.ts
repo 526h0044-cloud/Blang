@@ -52,10 +52,10 @@ export class PythonCodeGenerator {
       'import time',
       'import random as _py_random',
       '',
-      '# Runtime helper: Strict Type Safety Enforcer',
-      'def _bl_strict_add(a, b):',
-      '    if (isinstance(a, str) and isinstance(b, (int, float))) or (isinstance(a, (int, float)) and isinstance(b, str)):',
-      "        raise TypeError('BLang Strict TypeError: Cannot combine string and number using arithmetic operator +')",
+      '# Runtime helper: Dynamic Addition / Concatenation',
+      'def _bl_add(a, b):',
+      '    if isinstance(a, str) or isinstance(b, str):',
+      '        return str(a) + str(b)',
       '    return a + b',
       '',
       '# Runtime helper: Math & Geometry Standard Functions',
@@ -393,6 +393,9 @@ export class PythonCodeGenerator {
         const bin = node as BinaryOpNode;
         const left = this.genExpression(bin.left);
         const right = this.genExpression(bin.right);
+        if (bin.operator === '+') {
+          return `_bl_add(${left}, ${right})`;
+        }
         let op = bin.operator;
         if (op === 'and') op = 'and';
         else if (op === 'or') op = 'or';

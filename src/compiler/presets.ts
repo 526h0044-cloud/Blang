@@ -83,23 +83,43 @@ print(">>> BLang test program completed successfully!");
 `,
   },
   {
-    id: 'strict-type-error',
-    name: 'Strict Type Safety Error Demo',
-    description: 'Chặn đứng phép cộng chuỗi + số mà không cần let',
-    isErrorDemo: true,
+    id: 'dynamic-typing',
+    name: 'Dynamic Typing & Coercion',
+    description: 'Ghép chuỗi linh hoạt tự nhiên giữa String và Number mà không bị chặn',
     code: `// ==============================================================================
-// BLang Strict Type Safety Violation Demonstration
+// BLang Dynamic Typing Demonstration
 // ==============================================================================
 
 $user_title = "Commander Shepard - Level ";
 @level_number = 60;
 
-// VI PHẠM KIỂU DỮ LIỆU:
-// Chuỗi (String) tuyệt đối KHÔNG ĐƯỢC PHÉP thực hiện phép tính (+, -, *, /) với Số (Number).
-// Trình biên dịch lập tức ném ra lỗi BLangTypeError:
-$illegal_operation = $user_title + @level_number;
+// Hệ thống kiểu động tự nhiên:
+// Chuỗi và số kết hợp liền mạch (String concatenation)
+$player_profile = $user_title + @level_number;
 
-print("Dòng này sẽ KHÔNG BAO GIỜ chạy vì compiler đã chặn đứng!");
+print(">>> Kết quả ghép chuỗi linh hoạt:", $player_profile);
+
+$status_log = "Processing batch #";
+$status_log += 108;
+print(">>> Compound assignment linh hoạt:", $status_log);
+`,
+  },
+  {
+    id: 'syntax-diagnostic',
+    name: 'Syntax Diagnostic Demo',
+    description: 'Minh họa bắt lỗi cú pháp chính xác theo dòng và cột',
+    isErrorDemo: true,
+    code: `// ==============================================================================
+// BLang Syntax Diagnostic Error Demonstration
+// ==============================================================================
+
+@score = 100;
+$name = "Orion";
+
+// Cố tình thiếu dấu ngoặc nhọn kết thúc hàm để kiểm tra Parser Diagnostic
+function calculate_score(@val) {
+    return @val * 2;
+// Thiếu dấu '}' đóng hàm ở đây
 `,
   },
   {

@@ -242,11 +242,11 @@ export class ASTOptimizer {
             }
           }
 
-          if (lLit.litType === 'string' && rLit.litType === 'string' && bin.operator === '+') {
+          if (bin.operator === '+' && (lLit.litType === 'string' || rLit.litType === 'string')) {
             this.foldedCount++;
             return {
               type: 'Literal',
-              value: lLit.value + rLit.value,
+              value: String(lLit.value) + String(rLit.value),
               litType: 'string',
               line: bin.line,
               col: bin.col,

@@ -10,7 +10,8 @@ import { ConsoleView } from './components/ConsoleView';
 import { ReplShell } from './components/ReplShell';
 import { GuideModal } from './components/GuideModal';
 import { PythonSourceView } from './components/PythonSourceView';
-import { EcosystemView } from './components/EcosystemView';
+import { PerformanceMetricsView } from './components/PerformanceMetricsView';
+import { RuntimeStateView } from './components/RuntimeStateView';
 import { DownloadSdkModal } from './components/DownloadSdkModal';
 import { compileBLang, PipelineResult } from './compiler';
 import { PRESETS } from './compiler/presets';
@@ -19,12 +20,13 @@ import {
   ListFilter,
   Network,
   ShieldCheck,
-  FileCode2,
   Terminal as TerminalIcon,
-  Sidebar,
   FolderOpen,
   Cpu,
+  Activity,
+  Variable,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const INITIAL_FILES: BLangFile[] = [
   {
@@ -57,13 +59,18 @@ $final_power = initialize_system($agent, @clearance);
 
 print(">>> System status fully calibrated! Output power level:", $final_power);
 
-// 4. Data Collection Loops
+// 4. Dynamic String Concatenation & Coercion
+$status_log = "Agent " + $agent + " authorized with power ";
+$status_log += $final_power;
+print(">>>", $status_log);
+
+// 5. Data Collection Loops
 @sensors = ["Thermal Sensor", "Graviton Detector", "Quantum Radar"];
 for (sensor in @sensors) {
     print(">>> Online sensor unit:", sensor);
 }
 
-// 5. Tính năng sinh số ngẫu nhiên: %random(a, b)%
+// 6. Tính năng sinh số ngẫu nhiên: %random(a, b)%
 @lucky_seed = %random(10, 99)%;
 print(">>> Generated Security Token Seed (%random(10, 99)%):", @lucky_seed);
 
@@ -226,12 +233,12 @@ print(">>> Simulation finished. Final HP remaining:", _cur_hp);
 ];
 
 export default function App() {
-  const [activeNav, setActiveNav] = useState<'workbench' | 'repl' | 'guide' | 'python-source' | 'ecosystem'>('workbench');
+  const [activeNav, setActiveNav] = useState<'workbench' | 'repl' | 'guide' | 'python-source' | 'metrics'>('workbench');
   const [files, setFiles] = useState<BLangFile[]>(INITIAL_FILES);
   const [activeFileName, setActiveFileName] = useState<string>('main.bl');
   const [openTabs, setOpenTabs] = useState<string[]>(['main.bl', 'geometry_math.bl', 'math_lib.bl', 'game_engine.bl']);
   const [showExplorer, setShowExplorer] = useState(true);
-  const [activeStageTab, setActiveStageTab] = useState<'console' | 'tokens' | 'ast' | 'symbols' | 'codegen'>('console');
+  const [activeStageTab, setActiveStageTab] = useState<'console' | 'runtime' | 'metrics' | 'codegen' | 'ast' | 'symbols' | 'tokens'>('console');
   const [presetId, setPresetId] = useState<string>('comprehensive');
   const [isDownloadSdkOpen, setIsDownloadSdkOpen] = useState(false);
 
@@ -372,7 +379,7 @@ export default function App() {
     setActiveStageTab('console');
   };
 
-  // Export Bundle: All .bl files + compiler.py + output.py + output.js + blang runner
+  // Export Bundle: All .bl files + compiler.py + output.py + output.js + setup_blang.py
   const handleDownloadAll = () => {
     const downloadBlob = (filename: string, content: string) => {
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -414,201 +421,372 @@ export default function App() {
         foldedCount={result.foldedConstants}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex overflow-hidden">
-        {activeNav === 'workbench' && (
-          <div className="flex-1 flex overflow-hidden">
-            {/* File Explorer Toggle Bar / Sidebar */}
-            {showExplorer && (
-              <FileExplorer
-                files={files}
-                activeFileName={activeFileName}
-                onSelectFile={handleSelectFile}
-                onCreateFile={handleCreateFile}
-                onRenameFile={handleRenameFile}
-                onDeleteFile={handleDeleteFile}
-                onUploadFile={handleUploadFile}
-                onDownloadFile={handleDownloadFile}
-              />
-            )}
-
-            {/* Middle: Code Editor Pane */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
-              <div className="w-full md:w-1/2 min-h-[360px] md:min-h-0 h-[50vh] md:h-full overflow-hidden flex flex-col shrink-0 md:shrink border-b md:border-b-0 md:border-r border-slate-800">
-                <div className="bg-[#0a0e19] px-2 py-1 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
-                  <button
-                    onClick={() => setShowExplorer(!showExplorer)}
-                    title={showExplorer ? 'Hide File Explorer' : 'Show File Explorer'}
-                    className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-300 text-slate-400 transition-colors"
+      {/* Main Content Area with Animated Transitions */}
+      <main className="flex-1 flex overflow-hidden relative">
+        <AnimatePresence mode="wait">
+          {activeNav === 'workbench' && (
+            <motion.div
+              key="workbench"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex overflow-hidden w-full h-full"
+            >
+              {/* File Explorer Toggle Bar / Sidebar */}
+              <AnimatePresence>
+                {showExplorer && (
+                  <motion.div
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: 220, opacity: 1 }}
+                    exit={{ width: 0, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                    className="overflow-hidden shrink-0"
                   >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    <span>{showExplorer ? 'Hide Explorer' : 'Show Explorer'}</span>
-                  </button>
+                    <FileExplorer
+                      files={files}
+                      activeFileName={activeFileName}
+                      onSelectFile={handleSelectFile}
+                      onCreateFile={handleCreateFile}
+                      onRenameFile={handleRenameFile}
+                      onDeleteFile={handleDeleteFile}
+                      onUploadFile={handleUploadFile}
+                      onDownloadFile={handleDownloadFile}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-                  <span className="font-mono text-indigo-400 font-semibold">{activeFileName}</span>
-                </div>
-
-                <div className="flex-1 overflow-hidden">
-                  <EditorPane
-                    code={activeFile.content}
-                    onChange={handleCodeChange}
-                    onSelectPreset={handleSelectPreset}
-                    currentPresetId={presetId}
-                    errorLine={result.error?.line}
-                    activeFileName={activeFileName}
-                    openFiles={openTabs}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onDownloadActive={() => handleDownloadFile(activeFileName)}
-                  />
-                </div>
-              </div>
-
-              {/* Right: Multi-Stage Pipeline Inspectors */}
-              <div className="w-full md:w-1/2 min-h-[360px] md:min-h-0 h-[50vh] md:h-full flex flex-col overflow-hidden bg-[#0d1322] shrink-0 md:shrink">
-                {/* Pipeline Stage Tabs */}
-                <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900/90 text-xs overflow-x-auto">
-                  <div className="flex items-center gap-1">
+              {/* Middle: Code Editor Pane */}
+              <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
+                <div className="w-full md:w-1/2 min-h-[360px] md:min-h-0 h-[50vh] md:h-full overflow-hidden flex flex-col shrink-0 md:shrink border-b md:border-b-0 md:border-r border-slate-800">
+                  <div className="bg-[#0a0e19] px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
                     <button
-                      onClick={() => setActiveStageTab('console')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
-                        activeStageTab === 'console'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
+                      onClick={() => setShowExplorer(!showExplorer)}
+                      title={showExplorer ? 'Hide File Explorer' : 'Show File Explorer'}
+                      className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-300 text-slate-400 transition-colors cursor-pointer"
                     >
-                      <TerminalIcon className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Interpreter Console</span>
-                      {result.error && (
-                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse ml-0.5" />
-                      )}
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>{showExplorer ? 'Ẩn Explorer' : 'Hiện Explorer'}</span>
                     </button>
 
-                    <button
-                      onClick={() => setActiveStageTab('codegen')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
-                        activeStageTab === 'codegen'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>BVM Bytecode &amp; Exporters</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="font-mono text-indigo-400 font-semibold">{activeFileName}</span>
+                    </div>
+                  </div>
 
-                    <button
-                      onClick={() => setActiveStageTab('ast')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
-                        activeStageTab === 'ast'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <Network className="w-3.5 h-3.5 text-amber-400" />
-                      <span>AST & Optimizer</span>
-                      {result.foldedConstants > 0 && (
-                        <span className="text-[10px] font-mono px-1 rounded bg-amber-500/20 text-amber-300">
-                          {result.foldedConstants}
-                        </span>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => setActiveStageTab('symbols')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
-                        activeStageTab === 'symbols'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Symbol Table</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveStageTab('tokens')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
-                        activeStageTab === 'tokens'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      <ListFilter className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Tokens ({result.tokens.length})</span>
-                    </button>
+                  <div className="flex-1 overflow-hidden">
+                    <EditorPane
+                      code={activeFile.content}
+                      onChange={handleCodeChange}
+                      onSelectPreset={handleSelectPreset}
+                      currentPresetId={presetId}
+                      errorLine={result.error?.line}
+                      activeFileName={activeFileName}
+                      openFiles={openTabs}
+                      onSelectTab={handleSelectFile}
+                      onCloseTab={handleCloseTab}
+                      onDownloadActive={() => handleDownloadFile(activeFileName)}
+                    />
                   </div>
                 </div>
 
-                {/* Stage Viewport */}
-                <div className="flex-1 overflow-hidden">
-                  {activeStageTab === 'console' && (
-                    <ConsoleView
-                      logs={result.executionOutput}
-                      error={result.error}
-                      foldedCount={result.foldedConstants}
-                      sourceCode={activeFile.content}
-                      onRun={handleRun}
-                    />
-                  )}
+                {/* Right: Multi-Stage Pipeline Inspectors */}
+                <div className="w-full md:w-1/2 min-h-[360px] md:min-h-0 h-[50vh] md:h-full flex flex-col overflow-hidden bg-[#0d1322] shrink-0 md:shrink">
+                  {/* Pipeline Stage Tabs */}
+                  <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900/90 text-xs overflow-x-auto">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setActiveStageTab('console')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'console'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <TerminalIcon className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Console</span>
+                        {result.error && (
+                          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse ml-0.5" />
+                        )}
+                      </button>
 
-                  {activeStageTab === 'codegen' && (
-                    <CodegenView
-                      pythonCode={result.pythonCode}
-                      javascriptCode={result.javascriptCode}
-                      bytecodeDisassembly={result.bytecodeDisassembly}
-                      bytecodeData={result.bytecodeData}
-                    />
-                  )}
+                      {/* Runtime State tab in the right-hand panel */}
+                      <button
+                        onClick={() => setActiveStageTab('runtime')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'runtime'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Variable className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Runtime State</span>
+                        {result.runtimeState && result.runtimeState.allVariables.length > 0 && (
+                          <span className="text-[10px] font-mono px-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            {result.runtimeState.allVariables.length}
+                          </span>
+                        )}
+                      </button>
 
-                  {activeStageTab === 'ast' && (
-                    <ASTView
-                      rawAST={result.rawAST}
-                      optimizedAST={result.optimizedAST}
-                      foldedCount={result.foldedConstants}
-                    />
-                  )}
+                      {/* Performance Metrics tab in the right-hand panel */}
+                      <button
+                        onClick={() => setActiveStageTab('metrics')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'metrics'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Activity className="w-3.5 h-3.5 text-indigo-300" />
+                        <span>Performance Metrics</span>
+                        {result.metrics && (
+                          <span className="text-[10px] font-mono px-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {result.metrics.totalTranspileTimeMs}ms
+                          </span>
+                        )}
+                      </button>
 
-                  {activeStageTab === 'symbols' && (
-                    <SymbolTableView scopes={result.scopes} />
-                  )}
+                      <button
+                        onClick={() => setActiveStageTab('codegen')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'codegen'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>BVM Bytecode &amp; Exporters</span>
+                      </button>
 
-                  {activeStageTab === 'tokens' && (
-                    <TokensView tokens={result.tokens} />
-                  )}
+                      <button
+                        onClick={() => setActiveStageTab('ast')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'ast'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Network className="w-3.5 h-3.5 text-amber-400" />
+                        <span>AST &amp; Optimizer</span>
+                        {result.foldedConstants > 0 && (
+                          <span className="text-[10px] font-mono px-1 rounded bg-amber-500/20 text-amber-300">
+                            {result.foldedConstants}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setActiveStageTab('symbols')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'symbols'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Symbol Table</span>
+                      </button>
+
+                      <button
+                        onClick={() => setActiveStageTab('tokens')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap cursor-pointer ${
+                          activeStageTab === 'tokens'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <ListFilter className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Tokens ({result.tokens.length})</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Stage Viewport with Animated Transitions */}
+                  <div className="flex-1 overflow-hidden relative">
+                    <AnimatePresence mode="wait">
+                      {activeStageTab === 'console' && (
+                        <motion.div
+                          key="stage-console"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <ConsoleView
+                            logs={result.executionOutput}
+                            error={result.error}
+                            foldedCount={result.foldedConstants}
+                            sourceCode={activeFile.content}
+                            onRun={handleRun}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeStageTab === 'runtime' && (
+                        <motion.div
+                          key="stage-runtime"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <RuntimeStateView
+                            runtimeState={result.runtimeState}
+                            sourceCode={activeFile.content}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeStageTab === 'metrics' && (
+                        <motion.div
+                          key="stage-metrics"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <PerformanceMetricsView
+                            metrics={result.metrics}
+                            sourceCode={activeFile.content}
+                            isCompact={true}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeStageTab === 'codegen' && (
+                        <motion.div
+                          key="stage-codegen"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <CodegenView
+                            pythonCode={result.pythonCode}
+                            javascriptCode={result.javascriptCode}
+                            bytecodeDisassembly={result.bytecodeDisassembly}
+                            bytecodeData={result.bytecodeData}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeStageTab === 'ast' && (
+                        <motion.div
+                          key="stage-ast"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <ASTView
+                            rawAST={result.rawAST}
+                            optimizedAST={result.optimizedAST}
+                            foldedCount={result.foldedConstants}
+                          />
+                        </motion.div>
+                      )}
+
+                      {activeStageTab === 'symbols' && (
+                        <motion.div
+                          key="stage-symbols"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <SymbolTableView scopes={result.scopes} />
+                        </motion.div>
+                      )}
+
+                      {activeStageTab === 'tokens' && (
+                        <motion.div
+                          key="stage-tokens"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="h-full w-full"
+                        >
+                          <TokensView tokens={result.tokens} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
 
-        {activeNav === 'repl' && (
-          <div className="flex-1 h-full overflow-hidden">
-            <ReplShell />
-          </div>
-        )}
+          {activeNav === 'repl' && (
+            <motion.div
+              key="repl"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 h-full overflow-hidden w-full"
+            >
+              <ReplShell />
+            </motion.div>
+          )}
 
-        {activeNav === 'guide' && (
-          <div className="flex-1 h-full w-full overflow-hidden flex flex-col">
-            <GuideModal
-              onLoadSnippet={(snip) => {
-                handleCreateFile('snippet.bl', snip);
-                setActiveNav('workbench');
-              }}
-            />
-          </div>
-        )}
+          {activeNav === 'guide' && (
+            <motion.div
+              key="guide"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 h-full w-full overflow-hidden flex flex-col"
+            >
+              <GuideModal
+                onLoadSnippet={(snip) => {
+                  handleCreateFile('snippet.bl', snip);
+                  setActiveNav('workbench');
+                }}
+              />
+            </motion.div>
+          )}
 
-        {activeNav === 'ecosystem' && (
-          <div className="flex-1 h-full w-full overflow-hidden flex flex-col">
-            <EcosystemView />
-          </div>
-        )}
+          {/* Full Page Performance & Comparison view replacing old Ecosystem page */}
+          {activeNav === 'metrics' && (
+            <motion.div
+              key="metrics"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 h-full w-full overflow-hidden flex flex-col"
+            >
+              <PerformanceMetricsView
+                metrics={result.metrics}
+                sourceCode={activeFile.content}
+                isCompact={false}
+              />
+            </motion.div>
+          )}
 
-        {activeNav === 'python-source' && (
-          <div className="flex-1 h-full w-full overflow-hidden flex flex-col">
-            <PythonSourceView pythonSource={PYTHON_COMPILER_SOURCE} />
-          </div>
-        )}
+          {activeNav === 'python-source' && (
+            <motion.div
+              key="python-source"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 h-full w-full overflow-hidden flex flex-col"
+            >
+              <PythonSourceView pythonSource={PYTHON_COMPILER_SOURCE} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Standalone BLang SDK & Toolchain Download Modal */}

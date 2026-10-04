@@ -13,17 +13,17 @@ export const SymbolTableView: React.FC<SymbolTableViewProps> = ({ scopes }) => {
       <div className="p-3 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-slate-300">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span className="font-semibold">Layer 3: Lexical Scopes & Strict Type Safety</span>
+          <span className="font-semibold">Layer 3: Lexical Scopes &amp; Dynamic Type Inference</span>
         </div>
         <span className="text-[11px] text-slate-400 font-mono">
           {scopes.length} active scope(s)
         </span>
       </div>
 
-      <div className="p-3 bg-amber-500/5 border-b border-slate-800 text-[11px] text-amber-200/80 flex items-start gap-2">
-        <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+      <div className="p-3 bg-indigo-500/5 border-b border-slate-800 text-[11px] text-indigo-200/80 flex items-start gap-2">
+        <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
         <div>
-          <strong className="text-amber-300">Strict Type Safety Invariant:</strong> BLang strictly prohibits mixing Strings and Numbers in mathematical operations (<code className="text-amber-200">+</code>, <code className="text-amber-200">-</code>, <code className="text-amber-200">*</code>, <code className="text-amber-200">/</code>). Variable re-declaration within the same scope is also prohibited.
+          <strong className="text-indigo-300">Dynamic Type System:</strong> BLang quản lý biến với phạm vi từ vựng chặt chẽ (Lexical Scoping) nhưng hỗ trợ hệ thống kiểu động linh hoạt (Dynamic Typing). Phép cộng chuỗi và số được tự động kết hợp tự nhiên (String concatenation &amp; coercion).
         </div>
       </div>
 

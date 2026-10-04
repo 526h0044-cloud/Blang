@@ -21,6 +21,10 @@ import {
   ContinueNode,
   PrintNode,
   ExpressionStatementNode,
+  RuntimeVariable,
+  RuntimeScope,
+  ExecutionStep,
+  RuntimeExecutionState,
 } from './types';
 import { Lexer } from './lexer';
 import { Parser } from './parser';
@@ -33,10 +37,42 @@ class ReturnSignal {
 class BreakSignal {}
 class ContinueSignal {}
 
+export function formatRuntimeValue(val: any): { formatted: string; type: string } {
+  if (val === null) return { formatted: 'null', type: 'null' };
+  if (val === undefined) return { formatted: 'undefined', type: 'undefined' };
+  if (typeof val === 'number') return { formatted: String(val), type: 'number' };
+  if (typeof val === 'string') return { formatted: JSON.stringify(val), type: 'string' };
+  if (typeof val === 'boolean') return { formatted: String(val), type: 'boolean' };
+  if (Array.isArray(val)) {
+    const preview = JSON.stringify(val);
+    return { formatted: preview.length > 50 ? preview.slice(0, 47) + '...' : preview, type: `list[${val.length}]` };
+  }
+  if (val instanceof CallableFunction) {
+    return { formatted: `function ${val.name}(${val.params.join(', ')})`, type: 'function' };
+  }
+  if (typeof val === 'function') {
+    return { formatted: '<native built-in>', type: 'builtin' };
+  }
+  if (typeof val === 'object') {
+    try {
+      const preview = JSON.stringify(val);
+      return { formatted: preview.length > 50 ? preview.slice(0, 47) + '...' : preview, type: 'dict' };
+    } catch {
+      return { formatted: '[Object]', type: 'object' };
+    }
+  }
+  return { formatted: String(val), type: typeof val };
+}
+
 export class Environment {
   public bindings: Map<string, any> = new Map();
+  public name: string;
+  public depth: number;
 
-  constructor(public parent?: Environment) {}
+  constructor(public parent?: Environment, name = 'Global Scope') {
+    this.name = name;
+    this.depth = parent ? parent.depth + 1 : 0;
+  }
 
   public get(name: string, line = 0, col = 0): any {
     if (this.bindings.has(name)) return this.bindings.get(name);
@@ -83,7 +119,7 @@ export class CallableFunction {
         col,
       };
     }
-    const callEnv = new Environment(this.closure);
+    const callEnv = new Environment(this.closure, `function ${this.name}()`);
     for (let i = 0; i < this.params.length; i++) {
       callEnv.define(this.params[i], args[i]);
     }
@@ -109,14 +145,96 @@ export class Interpreter {
   public currentEnv: Environment;
   public stdout: string[] = [];
   public virtualFiles: Record<string, string> = {};
+  public steps: ExecutionStep[] = [];
+  public maxTraceSteps = 300;
   private stepCount = 0;
   public static readonly MAX_STEPS = 100000;
 
   constructor(customStdout?: (msg: string) => void, virtualFiles?: Record<string, string>) {
-    this.globalEnv = new Environment();
+    this.globalEnv = new Environment(undefined, 'Global Scope');
     this.currentEnv = this.globalEnv;
     this.virtualFiles = virtualFiles || {};
     this.initBuiltins(customStdout);
+  }
+
+  public recordStep(node: ASTNode, action: string, changedVariable?: string, outputLog?: string) {
+    if (this.steps.length >= this.maxTraceSteps) return;
+    const scopes = this.getScopesSnapshot();
+    const allVars: RuntimeVariable[] = [];
+    const seen = new Set<string>();
+    // Collect variables from innermost to outer, so local shadows outer
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      for (const v of scopes[i].variables) {
+        if (!seen.has(v.name)) {
+          seen.add(v.name);
+          allVars.push({
+            ...v,
+            changed: v.name === changedVariable,
+          });
+        }
+      }
+    }
+    this.steps.push({
+      stepNumber: this.steps.length + 1,
+      line: node.line || 1,
+      col: node.col || 1,
+      statementType: node.type,
+      action,
+      scopes,
+      allVariables: allVars,
+      changedVariable,
+      outputLog,
+    });
+  }
+
+  public getScopesSnapshot(): RuntimeScope[] {
+    const scopes: RuntimeScope[] = [];
+    let current: Environment | undefined = this.currentEnv;
+    while (current) {
+      const vars: RuntimeVariable[] = [];
+      for (const [k, v] of current.bindings.entries()) {
+        if (typeof v === 'function' && !(v instanceof CallableFunction)) {
+          continue;
+        }
+        const { formatted, type } = formatRuntimeValue(v);
+        vars.push({
+          name: k,
+          value: v,
+          type,
+          formattedValue: formatted,
+          scopeName: current.name,
+          scopeDepth: current.depth,
+        });
+      }
+      scopes.unshift({
+        name: current.name,
+        depth: current.depth,
+        variables: vars,
+      });
+      current = current.parent;
+    }
+    return scopes;
+  }
+
+  public getRuntimeState(executionTimeMs = 0): RuntimeExecutionState {
+    const finalScopes = this.getScopesSnapshot();
+    const finalVars: RuntimeVariable[] = [];
+    const seen = new Set<string>();
+    for (let i = finalScopes.length - 1; i >= 0; i--) {
+      for (const v of finalScopes[i].variables) {
+        if (!seen.has(v.name)) {
+          seen.add(v.name);
+          finalVars.push(v);
+        }
+      }
+    }
+    return {
+      totalSteps: this.steps.length,
+      steps: this.steps,
+      scopes: finalScopes,
+      allVariables: finalVars,
+      executionTimeMs: Math.round(executionTimeMs * 100) / 100,
+    };
   }
 
   private initBuiltins(customStdout?: (msg: string) => void) {
@@ -438,6 +556,8 @@ export class Interpreter {
         const decl = node as VarDeclNode;
         const val = decl.initializer ? this.evaluate(decl.initializer) : null;
         this.currentEnv.define(decl.name, val);
+        const { formatted } = formatRuntimeValue(val);
+        this.recordStep(decl, `Khai báo biến ${decl.name} = ${formatted}`, decl.name);
         return val;
       }
 
@@ -456,6 +576,9 @@ export class Interpreter {
             const cur = this.currentEnv.get(id, assign.line, assign.col);
             this.currentEnv.set(id, cur - val);
           }
+          const finalVal = this.currentEnv.get(id, assign.line, assign.col);
+          const { formatted } = formatRuntimeValue(finalVal);
+          this.recordStep(assign, `Gán giá trị ${id} ${assign.operator} ${formatted}`, id);
         } else if (assign.target.type === 'Index') {
           const indexNode = assign.target as IndexNode;
           const tgt = this.evaluate(indexNode.target);
@@ -467,6 +590,8 @@ export class Interpreter {
           } else if (assign.operator === '-=') {
             tgt[idx] = tgt[idx] - val;
           }
+          const { formatted } = formatRuntimeValue(tgt[idx]);
+          this.recordStep(assign, `Cập nhật phần tử [${idx}] = ${formatted}`);
         }
         return val;
       }
@@ -475,14 +600,16 @@ export class Interpreter {
         const fn = node as FunctionDefNode;
         const callable = new CallableFunction(fn.name, fn.parameters, fn.body, this.currentEnv);
         this.currentEnv.define(fn.name, callable);
+        this.recordStep(fn, `Định nghĩa hàm ${fn.name}(${fn.parameters.join(', ')})`, fn.name);
         return callable;
       }
 
       case 'If': {
         const ifNode = node as IfNode;
         const cond = this.evaluate(ifNode.condition);
+        this.recordStep(ifNode, `Kiểm tra điều kiện if (${Boolean(cond) ? 'true' : 'false'})`);
         if (Boolean(cond)) {
-          const sub = new Environment(this.currentEnv);
+          const sub = new Environment(this.currentEnv, 'if-block');
           const prev = this.currentEnv;
           this.currentEnv = sub;
           try {
@@ -494,8 +621,10 @@ export class Interpreter {
 
         let ranElif = false;
         for (const branch of ifNode.elifBranches) {
-          if (Boolean(this.evaluate(branch.condition))) {
-            const sub = new Environment(this.currentEnv);
+          const elifCond = this.evaluate(branch.condition);
+          this.recordStep(branch.condition, `Kiểm tra điều kiện elseif (${Boolean(elifCond) ? 'true' : 'false'})`);
+          if (Boolean(elifCond)) {
+            const sub = new Environment(this.currentEnv, 'elseif-block');
             const prev = this.currentEnv;
             this.currentEnv = sub;
             try {
@@ -508,7 +637,8 @@ export class Interpreter {
         }
 
         if (!ranElif && ifNode.elseBranch) {
-          const sub = new Environment(this.currentEnv);
+          this.recordStep(ifNode.elseBranch, 'Thực thi nhánh else');
+          const sub = new Environment(this.currentEnv, 'else-block');
           const prev = this.currentEnv;
           this.currentEnv = sub;
           try {
@@ -531,9 +661,10 @@ export class Interpreter {
               col: w.col,
             };
           }
-          const sub = new Environment(this.currentEnv);
+          const sub = new Environment(this.currentEnv, 'while-block');
           const prev = this.currentEnv;
           this.currentEnv = sub;
+          this.recordStep(w, 'Lặp qua khối lệnh while');
           try {
             this.executeBlock(w.body);
           } catch (err) {
@@ -567,10 +698,12 @@ export class Interpreter {
               col: f.col,
             };
           }
-          const sub = new Environment(this.currentEnv);
+          const sub = new Environment(this.currentEnv, `for (${f.variable})`);
           sub.define(f.variable, item);
           const prev = this.currentEnv;
           this.currentEnv = sub;
+          const { formatted } = formatRuntimeValue(item);
+          this.recordStep(f, `Vòng lặp for: ${f.variable} = ${formatted}`, f.variable);
           try {
             this.executeBlock(f.body);
           } catch (err) {
@@ -587,6 +720,8 @@ export class Interpreter {
       case 'Return': {
         const ret = node as ReturnNode;
         const val = ret.expression ? this.evaluate(ret.expression) : null;
+        const { formatted } = formatRuntimeValue(val);
+        this.recordStep(ret, `Return giá trị ${formatted}`);
         throw new ReturnSignal(val);
       }
 
@@ -600,6 +735,8 @@ export class Interpreter {
         const p = node as PrintNode;
         const vals = p.arguments.map((a) => this.evaluate(a));
         this.log(...vals);
+        const logStr = vals.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' ');
+        this.recordStep(p, `Gọi print(${logStr})`, undefined, logStr);
         return null;
       }
 
@@ -700,21 +837,7 @@ export class Interpreter {
         const right = this.evaluate(bin.right);
         const op = bin.operator;
 
-        // Strict Type Check in runtime
-        if (['+', '-', '*', '/', '%'].includes(op)) {
-          if (
-            (typeof left === 'string' && typeof right === 'number') ||
-            (typeof left === 'number' && typeof right === 'string')
-          ) {
-            throw {
-              stage: 'runtime',
-              message: `BLang Strict TypeError: Cannot combine string and number using arithmetic operator '${op}'`,
-              line: bin.line,
-              col: bin.col,
-            };
-          }
-        }
-
+        // Flexible Dynamic Typing
         if (op === '+') return left + right;
         if (op === '-') return left - right;
         if (op === '*') return left * right;

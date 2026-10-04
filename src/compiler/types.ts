@@ -265,11 +265,68 @@ export interface ScopeInfo {
   symbols: Record<string, SymbolInfo>;
 }
 
+export interface CompilerMetrics {
+  lexerTimeMs: number;
+  parserTimeMs: number;
+  analyzerTimeMs: number;
+  optimizerTimeMs: number;
+  bytecodeTimeMs: number;
+  pyCodegenTimeMs: number;
+  jsCodegenTimeMs: number;
+  interpreterTimeMs: number;
+  totalTranspileTimeMs: number;
+  totalPipelineTimeMs: number;
+  sourceLines: number;
+  sourceBytes: number;
+  tokenCount: number;
+  astNodeCount: number;
+  jsBytes: number;
+  pyBytes: number;
+  bytecodeBytes: number;
+  estimatedMemoryKb: number;
+}
+
 export interface CompilerDiagnostic {
   stage: 'lexer' | 'parser' | 'semantic' | 'runtime';
   message: string;
   line?: number;
   col?: number;
+}
+
+export interface RuntimeVariable {
+  name: string;
+  value: any;
+  type: string;
+  formattedValue: string;
+  scopeName: string;
+  scopeDepth: number;
+  changed?: boolean;
+}
+
+export interface RuntimeScope {
+  name: string;
+  depth: number;
+  variables: RuntimeVariable[];
+}
+
+export interface ExecutionStep {
+  stepNumber: number;
+  line: number;
+  col: number;
+  statementType: string;
+  action: string;
+  scopes: RuntimeScope[];
+  allVariables: RuntimeVariable[];
+  changedVariable?: string;
+  outputLog?: string;
+}
+
+export interface RuntimeExecutionState {
+  totalSteps: number;
+  steps: ExecutionStep[];
+  scopes: RuntimeScope[];
+  allVariables: RuntimeVariable[];
+  executionTimeMs: number;
 }
 
 export interface PipelineResult {
@@ -284,5 +341,8 @@ export interface PipelineResult {
   bytecodeData?: any;
   executionOutput: string[];
   foldedConstants: number;
+  metrics?: CompilerMetrics;
+  runtimeState?: RuntimeExecutionState;
   error?: CompilerDiagnostic;
 }
+

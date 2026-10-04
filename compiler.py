@@ -1132,13 +1132,6 @@ class SemanticAnalyzer:
                     sym = Symbol(name=node.target.name, symbol_type=val_type, line=node.line, col=node.col)
                     self.current_scope.define(sym)
                 else:
-                    # Check arithmetic compound assignment strict types
-                    if node.operator in ("+=", "-="):
-                        if (sym.symbol_type == "string" and val_type == "number") or (sym.symbol_type == "number" and val_type == "string"):
-                            raise BLangTypeError(
-                                f"Illegal compound assignment '{node.operator}' between string variable '{sym.name}' and number. BLang strictly prohibits string-number arithmetic coercion.",
-                                node.line, node.col, self.source
-                            )
                     # Update inferred type if not strict constant
                     if val_type != "unknown":
                         sym.symbol_type = val_type
@@ -1290,15 +1283,10 @@ class SemanticAnalyzer:
             return "any"
 
         if isinstance(node, UnaryOpNode):
-            sub_type = self.infer_type(node.operand)
+            self.infer_type(node.operand)
             if node.operator == "not":
                 return "boolean"
             if node.operator in ("-", "+"):
-                if sub_type == "string":
-                    raise BLangTypeError(
-                        f"Illegal unary operator '{node.operator}' on string operand. Mathematical operations on strings are strictly prohibited.",
-                        node.line, node.col, self.source
-                    )
                 return "number"
             return "any"
 
@@ -1309,45 +1297,22 @@ class SemanticAnalyzer:
 
             # Arithmetic operators: +, -, *, /, %
             if op in ("+", "-", "*", "/", "%"):
-                # STRICT TYPE SAFETY ENFORCEMENT:
-                # String cannot participate in ANY arithmetic operation with Number
                 is_left_str = (t_left == "string")
                 is_right_str = (t_right == "string")
                 is_left_num = (t_left == "number")
                 is_right_num = (t_right == "number")
 
-                if (is_left_str and is_right_num) or (is_left_num and is_right_str):
-                    left_desc = f"'{t_left}'"
-                    if isinstance(node.left, IdentifierNode):
-                        left_desc = f"variable '{node.left.name}' (type '{t_left}')"
-                    elif isinstance(node.left, LiteralNode):
-                        left_desc = f"literal '{node.left.value}' (type '{t_left}')"
-
-                    right_desc = f"'{t_right}'"
-                    if isinstance(node.right, IdentifierNode):
-                        right_desc = f"variable '{node.right.name}' (type '{t_right}')"
-                    elif isinstance(node.right, LiteralNode):
-                        right_desc = f"literal '{node.right.value}' (type '{t_right}')"
-
-                    raise BLangTypeError(
-                        f"Illegal arithmetic operation '{op}' between {left_desc} and {right_desc}. BLang enforces strict type safety: strings and numbers CANNOT be combined in arithmetic operations.",
-                        node.line, node.col, self.source
-                    )
-
-                if op in ("-", "*", "/", "%") and (is_left_str or is_right_str):
-                    raise BLangTypeError(
-                        f"Illegal mathematical operator '{op}' applied to string. Strings only support string formatting or standard function calls, not math arithmetic.",
-                        node.line, node.col, self.source
-                    )
-
-                if is_left_str and is_right_str and op == "+":
-                    # Note: BLang allows pure string concatenation or requires formatting
-                    return "string"
+                if op == "+":
+                    if is_left_str or is_right_str:
+                        return "string"
+                    if is_left_num and is_right_num:
+                        return "number"
+                    return "any"
 
                 if is_left_num and is_right_num:
                     return "number"
 
-                return "number" if (is_left_num or is_right_num) else "any"
+                return "number"
 
             # Relational & Equality operators
             if op in ("==", "!=", "<", "<=", ">", ">="):
@@ -1571,10 +1536,10 @@ class PythonCodeGenerator:
             "import time",
             "import random as _py_random",
             "",
-            "# Runtime helper: Strict Type Safety Enforcer",
-            "def _bl_strict_add(a, b):",
-            "    if (isinstance(a, str) and isinstance(b, (int, float))) or (isinstance(a, (int, float)) and isinstance(b, str)):",
-            "        raise TypeError('BLang Strict TypeError: Cannot combine string and number using arithmetic operator +')",
+            "# Runtime helper: Dynamic Addition / Concatenation",
+            "def _bl_add(a, b):",
+            "    if isinstance(a, str) or isinstance(b, str):",
+            "        return str(a) + str(b)",
             "    return a + b",
             "",
             "# Runtime helper: Math & Geometry Standard Functions",
@@ -1871,6 +1836,8 @@ class PythonCodeGenerator:
             l = self.gen_expression(node.left)
             r = self.gen_expression(node.right)
             op = node.operator
+            if op == "+":
+                return f"_bl_add({l}, {r})"
             if op == "and":
                 op = "and"
             elif op == "or":
@@ -1902,14 +1869,6 @@ class JavaScriptCodeGenerator:
             "// Target: Modern Web Browsers & Node.js Runtime (Web, Apps, Casual Games)",
             "// ==============================================================================",
             "'use strict';",
-            "",
-            "// Runtime helper: Strict Type Safety Enforcer (No coercion between string and number in arithmetic)",
-            "function _bl_strict_add(a, b) {",
-            "    if ((typeof a === 'string' && typeof b === 'number') || (typeof a === 'number' && typeof b === 'string')) {",
-            "        throw new TypeError('BLang Strict TypeError: Cannot combine string and number using arithmetic operator +');",
-            "    }",
-            "    return a + b;",
-            "}",
             "",
             "// Runtime helper: Math & Geometry Standard Functions",
             "const PI = Math.PI;",
@@ -2753,15 +2712,9 @@ class Interpreter:
             r = self.evaluate(node.right)
             op = node.operator
 
-            # Runtime Strict Type Safety Check as defense-in-depth
-            if op in ("+", "-", "*", "/", "%"):
-                if (isinstance(l, str) and isinstance(r, (int, float))) or (isinstance(l, (int, float)) and isinstance(r, str)):
-                    raise BLangTypeError(
-                        f"Illegal arithmetic operation '{op}' between string and number at line {node.line}, col {node.col}",
-                        node.line, node.col
-                    )
-
             if op == "+":
+                if isinstance(l, str) or isinstance(r, str):
+                    return str(l) + str(r)
                 return l + r
             elif op == "-":
                 return l - r
