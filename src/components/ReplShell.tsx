@@ -60,7 +60,29 @@ export const ReplShell: React.FC = () => {
         {
           type: 'system',
           content:
-            'BLang REPL Commands:\n  :symbols    - Inspect current runtime variables and types\n  :clear      - Clear REPL screen\n  :reset      - Reset interpreter environment\n  :help       - Show this command reference',
+            'BLang REPL Commands:\n  :math       - Danh sách tất cả các hàm toán học & hình học (cir_c, sq_s, sin, sphere_v...)\n  :symbols    - Danh sách biến và trạng thái môi trường hiện tại\n  :clear      - Xóa sạch màn hình dòng lệnh\n  :reset      - Khởi động lại môi trường thông dịch\n  :help       - Xem trợ giúp lệnh',
+        },
+      ]);
+      return;
+    }
+
+    if (trimmed === ':math') {
+      setHistory((prev) => [
+        ...prev,
+        { type: 'input', content: cmd },
+        {
+          type: 'system',
+          content:
+            'Thư viện Toán học & Hình học BLang (Tích hợp sẵn):\n' +
+            '  * Lượng giác độ: sin(d), cos(d), tan(d), cotan(d)  [VD: sin(90) => 1, cos(60) => 0.5]\n' +
+            '  * Hình tròn:     cir_c(r) / circle_c(r) (Chu vi), cir_s(r) / circle_s(r) (Diện tích)\n' +
+            '  * Hình vuông:    sq_c(a) / square_c(a) (Chu vi), sq_s(a) / square_s(a) (Diện tích)\n' +
+            '  * Thể tích:      sphere_v(r), cylinder_v(r, h), cone_v(r, h), cube_v(a), cuboid_v(w, h, d)\n' +
+            '  * Chữ nhật:      rect_c(w, h), rect_s(w, h)\n' +
+            '  * Hình thang:    trapezoid_c(a,b,c,d), trapezoid_s(a, b, h)\n' +
+            '  * Đa giác đều:   polygon_c(n, s), polygon_s(n, s)\n' +
+            '  * Căn & Mũ:      sqrt(x), cbrt(x), root(x, n), pow(b, e)\n' +
+            '  * Logarit:       log(x, [base]), ln(x), log10(x), log2(x), PI, E',
         },
       ]);
       return;
@@ -111,6 +133,17 @@ export const ReplShell: React.FC = () => {
       const ast = parser.parse();
 
       const analyzer = new SemanticAnalyzer();
+      // Pre-seed analyzer global scope with variables already bound in REPL session
+      for (const [varName, varVal] of interpreter.globalEnv.bindings.entries()) {
+        const valType = typeof varVal === 'number' ? 'number'
+          : typeof varVal === 'string' ? 'string'
+          : typeof varVal === 'boolean' ? 'boolean'
+          : typeof varVal === 'function' ? 'function'
+          : 'any';
+        if (!analyzer.globalScope.symbols.has(varName)) {
+          analyzer.globalScope.define({ name: varName, type: valType as any, line: 0, col: 0 });
+        }
+      }
       analyzer.analyze(ast);
 
       const optimizer = new ASTOptimizer();

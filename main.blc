@@ -1,0 +1,7 @@
+{
+  "magic": "BLANG_BYTECODE_BVM",
+  "version": "1.0.0",
+  "source": "main.bl",
+  "tokens_count": 115,
+  "folded_constants": 0
+}

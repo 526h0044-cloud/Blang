@@ -109,6 +109,8 @@ export class Interpreter {
   public currentEnv: Environment;
   public stdout: string[] = [];
   public virtualFiles: Record<string, string> = {};
+  private stepCount = 0;
+  public static readonly MAX_STEPS = 100000;
 
   constructor(customStdout?: (msg: string) => void, virtualFiles?: Record<string, string>) {
     this.globalEnv = new Environment();
@@ -168,20 +170,33 @@ export class Interpreter {
     this.globalEnv.define('PI', Math.PI);
     this.globalEnv.define('E', Math.E);
 
-    // Trigonometric functions
-    this.globalEnv.define('sin', (args: any[]) => Math.sin(Number(args[0])));
-    this.globalEnv.define('cos', (args: any[]) => Math.cos(Number(args[0])));
-    this.globalEnv.define('tan', (args: any[]) => Math.tan(Number(args[0])));
-    this.globalEnv.define('cotan', (args: any[]) => 1 / Math.tan(Number(args[0])));
-    this.globalEnv.define('cot', (args: any[]) => 1 / Math.tan(Number(args[0])));
+    // Trigonometric functions (Degrees by default as requested: sin(90) = 1, cos(60) = 0.5)
+    const sinDeg = (args: any[]) => Math.sin(Number(args[0]) * (Math.PI / 180));
+    const cosDeg = (args: any[]) => Math.cos(Number(args[0]) * (Math.PI / 180));
+    const tanDeg = (args: any[]) => Math.tan(Number(args[0]) * (Math.PI / 180));
+    const cotanDeg = (args: any[]) => 1 / Math.tan(Number(args[0]) * (Math.PI / 180));
 
-    // Degree <-> Radian conversions & Degree trig functions
+    this.globalEnv.define('sin', sinDeg);
+    this.globalEnv.define('cos', cosDeg);
+    this.globalEnv.define('tan', tanDeg);
+    this.globalEnv.define('cotan', cotanDeg);
+    this.globalEnv.define('cot', cotanDeg);
+
+    // Backward compatible & explicit aliases
+    this.globalEnv.define('sind', sinDeg);
+    this.globalEnv.define('cosd', cosDeg);
+    this.globalEnv.define('tand', tanDeg);
+    this.globalEnv.define('cotand', cotanDeg);
+
+    // Radian trigonometric functions
+    this.globalEnv.define('sin_rad', (args: any[]) => Math.sin(Number(args[0])));
+    this.globalEnv.define('cos_rad', (args: any[]) => Math.cos(Number(args[0])));
+    this.globalEnv.define('tan_rad', (args: any[]) => Math.tan(Number(args[0])));
+    this.globalEnv.define('cotan_rad', (args: any[]) => 1 / Math.tan(Number(args[0])));
+
+    // Degree <-> Radian conversions
     this.globalEnv.define('deg_to_rad', (args: any[]) => Number(args[0]) * (Math.PI / 180));
     this.globalEnv.define('rad_to_deg', (args: any[]) => Number(args[0]) * (180 / Math.PI));
-    this.globalEnv.define('sind', (args: any[]) => Math.sin(Number(args[0]) * (Math.PI / 180)));
-    this.globalEnv.define('cosd', (args: any[]) => Math.cos(Number(args[0]) * (Math.PI / 180)));
-    this.globalEnv.define('tand', (args: any[]) => Math.tan(Number(args[0]) * (Math.PI / 180)));
-    this.globalEnv.define('cotand', (args: any[]) => 1 / Math.tan(Number(args[0]) * (Math.PI / 180)));
 
     // Logarithmic & Exponential
     this.globalEnv.define('log', (args: any[]) => {
@@ -213,35 +228,186 @@ export class Interpreter {
     this.globalEnv.define('floor', (args: any[]) => Math.floor(Number(args[0])));
     this.globalEnv.define('ceil', (args: any[]) => Math.ceil(Number(args[0])));
 
-    // Geometry: Hình tròn, Cầu, Trụ, Nón (Circle, Sphere, Cylinder, Cone)
-    this.globalEnv.define('circle_perimeter', (args: any[]) => 2 * Math.PI * Number(args[0]));
-    this.globalEnv.define('circle_circumference', (args: any[]) => 2 * Math.PI * Number(args[0]));
-    this.globalEnv.define('circle_area', (args: any[]) => Math.PI * Math.pow(Number(args[0]), 2));
-    this.globalEnv.define('sphere_volume', (args: any[]) => (4 / 3) * Math.PI * Math.pow(Number(args[0]), 3));
-    this.globalEnv.define('cylinder_volume', (args: any[]) => Math.PI * Math.pow(Number(args[0]), 2) * Number(args[1]));
-    this.globalEnv.define('cone_volume', (args: any[]) => (1 / 3) * Math.PI * Math.pow(Number(args[0]), 2) * Number(args[1]));
+    // Geometry: Hình tròn (circle hoặc cir, chu vi: c/C, diện tích: s/S)
+    const fnCircleC = (args: any[]) => 2 * Math.PI * Number(args[0]);
+    const fnCircleS = (args: any[]) => Math.PI * Math.pow(Number(args[0]), 2);
+    this.globalEnv.define('circle_c', fnCircleC);
+    this.globalEnv.define('circle_C', fnCircleC);
+    this.globalEnv.define('cir_c', fnCircleC);
+    this.globalEnv.define('cir_C', fnCircleC);
+    this.globalEnv.define('circle_perimeter', fnCircleC);
+    this.globalEnv.define('cir_perimeter', fnCircleC);
+    this.globalEnv.define('circle_circumference', fnCircleC);
+    this.globalEnv.define('cir_circumference', fnCircleC);
 
-    // Geometry: Hình vuông & Lập phương (Square & Cube)
-    this.globalEnv.define('square_perimeter', (args: any[]) => 4 * Number(args[0]));
-    this.globalEnv.define('square_area', (args: any[]) => Number(args[0]) * Number(args[0]));
-    this.globalEnv.define('cube_volume', (args: any[]) => Math.pow(Number(args[0]), 3));
+    this.globalEnv.define('circle_s', fnCircleS);
+    this.globalEnv.define('circle_S', fnCircleS);
+    this.globalEnv.define('cir_s', fnCircleS);
+    this.globalEnv.define('cir_S', fnCircleS);
+    this.globalEnv.define('circle_area', fnCircleS);
+    this.globalEnv.define('cir_area', fnCircleS);
 
-    // Geometry: Hình chữ nhật & Hình hộp (Rectangle & Cuboid)
-    this.globalEnv.define('rect_perimeter', (args: any[]) => 2 * (Number(args[0]) + Number(args[1])));
-    this.globalEnv.define('rect_area', (args: any[]) => Number(args[0]) * Number(args[1]));
-    this.globalEnv.define('cuboid_volume', (args: any[]) => Number(args[0]) * Number(args[1]) * Number(args[2]));
+    // Geometry: Hình cầu (sphere, thể tích: v/V, diện tích: s/S)
+    const fnSphereV = (args: any[]) => (4 / 3) * Math.PI * Math.pow(Number(args[0]), 3);
+    const fnSphereS = (args: any[]) => 4 * Math.PI * Math.pow(Number(args[0]), 2);
+    this.globalEnv.define('sphere_v', fnSphereV);
+    this.globalEnv.define('sphere_V', fnSphereV);
+    this.globalEnv.define('sphere_volume', fnSphereV);
+    this.globalEnv.define('sphere_s', fnSphereS);
+    this.globalEnv.define('sphere_S', fnSphereS);
+    this.globalEnv.define('sphere_area', fnSphereS);
 
-    // Geometry: Hình thang (Trapezoid) & Đa giác đều (Regular Polygon) & Tam giác (Triangle)
-    this.globalEnv.define('trapezoid_area', (args: any[]) => ((Number(args[0]) + Number(args[1])) * Number(args[2])) / 2);
-    this.globalEnv.define('trapezoid_perimeter', (args: any[]) => Number(args[0]) + Number(args[1]) + Number(args[2]) + Number(args[3]));
-    this.globalEnv.define('polygon_perimeter', (args: any[]) => Number(args[0]) * Number(args[1]));
-    this.globalEnv.define('polygon_area', (args: any[]) => {
+    // Geometry: Hình trụ (cylinder, thể tích: v/V)
+    const fnCylinderV = (args: any[]) => Math.PI * Math.pow(Number(args[0]), 2) * Number(args[1]);
+    this.globalEnv.define('cylinder_v', fnCylinderV);
+    this.globalEnv.define('cylinder_V', fnCylinderV);
+    this.globalEnv.define('cylinder_volume', fnCylinderV);
+
+    // Geometry: Hình nón (cone, thể tích: v/V)
+    const fnConeV = (args: any[]) => (1 / 3) * Math.PI * Math.pow(Number(args[0]), 2) * Number(args[1]);
+    this.globalEnv.define('cone_v', fnConeV);
+    this.globalEnv.define('cone_V', fnConeV);
+    this.globalEnv.define('cone_volume', fnConeV);
+
+    // Geometry: Hình vuông (square hoặc sq, chu vi: c/C, diện tích: s/S)
+    const fnSquareC = (args: any[]) => 4 * Number(args[0]);
+    const fnSquareS = (args: any[]) => Number(args[0]) * Number(args[0]);
+    this.globalEnv.define('square_c', fnSquareC);
+    this.globalEnv.define('square_C', fnSquareC);
+    this.globalEnv.define('sq_c', fnSquareC);
+    this.globalEnv.define('sq_C', fnSquareC);
+    this.globalEnv.define('square_perimeter', fnSquareC);
+    this.globalEnv.define('sq_perimeter', fnSquareC);
+
+    this.globalEnv.define('square_s', fnSquareS);
+    this.globalEnv.define('square_S', fnSquareS);
+    this.globalEnv.define('sq_s', fnSquareS);
+    this.globalEnv.define('sq_S', fnSquareS);
+    this.globalEnv.define('square_area', fnSquareS);
+    this.globalEnv.define('sq_area', fnSquareS);
+
+    // Geometry: Hình lập phương (cube, thể tích: v/V, diện tích: s/S)
+    const fnCubeV = (args: any[]) => Math.pow(Number(args[0]), 3);
+    const fnCubeS = (args: any[]) => 6 * Math.pow(Number(args[0]), 2);
+    this.globalEnv.define('cube_v', fnCubeV);
+    this.globalEnv.define('cube_V', fnCubeV);
+    this.globalEnv.define('cube_volume', fnCubeV);
+    this.globalEnv.define('cube_s', fnCubeS);
+    this.globalEnv.define('cube_S', fnCubeS);
+    this.globalEnv.define('cube_area', fnCubeS);
+
+    // Geometry: Hình chữ nhật (rect hoặc rectangle, chu vi: c/C, diện tích: s/S)
+    const fnRectC = (args: any[]) => 2 * (Number(args[0]) + Number(args[1]));
+    const fnRectS = (args: any[]) => Number(args[0]) * Number(args[1]);
+    this.globalEnv.define('rect_c', fnRectC);
+    this.globalEnv.define('rect_C', fnRectC);
+    this.globalEnv.define('rectangle_c', fnRectC);
+    this.globalEnv.define('rectangle_C', fnRectC);
+    this.globalEnv.define('rect_perimeter', fnRectC);
+    this.globalEnv.define('rectangle_perimeter', fnRectC);
+
+    this.globalEnv.define('rect_s', fnRectS);
+    this.globalEnv.define('rect_S', fnRectS);
+    this.globalEnv.define('rectangle_s', fnRectS);
+    this.globalEnv.define('rectangle_S', fnRectS);
+    this.globalEnv.define('rect_area', fnRectS);
+    this.globalEnv.define('rectangle_area', fnRectS);
+
+    // Geometry: Hình hộp chữ nhật (cuboid, thể tích: v/V)
+    const fnCuboidV = (args: any[]) => Number(args[0]) * Number(args[1]) * Number(args[2]);
+    this.globalEnv.define('cuboid_v', fnCuboidV);
+    this.globalEnv.define('cuboid_V', fnCuboidV);
+    this.globalEnv.define('cuboid_volume', fnCuboidV);
+
+    // Geometry: Hình thang (trapezoid, diện tích: s/S, chu vi: c/C)
+    const fnTrapezoidS = (args: any[]) => ((Number(args[0]) + Number(args[1])) * Number(args[2])) / 2;
+    const fnTrapezoidC = (args: any[]) => Number(args[0]) + Number(args[1]) + Number(args[2]) + Number(args[3]);
+    this.globalEnv.define('trapezoid_s', fnTrapezoidS);
+    this.globalEnv.define('trapezoid_S', fnTrapezoidS);
+    this.globalEnv.define('trapezoid_area', fnTrapezoidS);
+    this.globalEnv.define('trapezoid_c', fnTrapezoidC);
+    this.globalEnv.define('trapezoid_C', fnTrapezoidC);
+    this.globalEnv.define('trapezoid_perimeter', fnTrapezoidC);
+
+    // Geometry: Đa giác đều (regular polygon, chu vi: c/C, diện tích: s/S)
+    const fnPolygonC = (args: any[]) => Number(args[0]) * Number(args[1]);
+    const fnPolygonS = (args: any[]) => {
       const n = Number(args[0]);
       const s = Number(args[1]);
       return (n * s * s) / (4 * Math.tan(Math.PI / n));
+    };
+    this.globalEnv.define('polygon_c', fnPolygonC);
+    this.globalEnv.define('polygon_C', fnPolygonC);
+    this.globalEnv.define('polygon_perimeter', fnPolygonC);
+    this.globalEnv.define('polygon_s', fnPolygonS);
+    this.globalEnv.define('polygon_S', fnPolygonS);
+    this.globalEnv.define('polygon_area', fnPolygonS);
+
+    // Geometry: Tam giác (triangle / tri, diện tích: s/S, chu vi: c/C)
+    const fnTriangleS = (args: any[]) => 0.5 * Number(args[0]) * Number(args[1]);
+    const fnTriangleC = (args: any[]) => Number(args[0]) + Number(args[1]) + Number(args[2]);
+    this.globalEnv.define('triangle_s', fnTriangleS);
+    this.globalEnv.define('triangle_S', fnTriangleS);
+    this.globalEnv.define('triangle_area', fnTriangleS);
+    this.globalEnv.define('tri_s', fnTriangleS);
+    this.globalEnv.define('tri_S', fnTriangleS);
+    this.globalEnv.define('tri_area', fnTriangleS);
+
+    this.globalEnv.define('triangle_c', fnTriangleC);
+    this.globalEnv.define('triangle_C', fnTriangleC);
+    this.globalEnv.define('triangle_perimeter', fnTriangleC);
+    this.globalEnv.define('tri_c', fnTriangleC);
+    this.globalEnv.define('tri_C', fnTriangleC);
+    this.globalEnv.define('tri_perimeter', fnTriangleC);
+
+    // Standard Library: String Operations
+    this.globalEnv.define('upper', (args: any[]) => String(args[0]).toUpperCase());
+    this.globalEnv.define('lower', (args: any[]) => String(args[0]).toLowerCase());
+    this.globalEnv.define('trim', (args: any[]) => String(args[0]).trim());
+    this.globalEnv.define('replace', (args: any[]) =>
+      String(args[0]).split(String(args[1])).join(String(args[2]))
+    );
+    this.globalEnv.define('split', (args: any[]) => String(args[0]).split(String(args[1])));
+    this.globalEnv.define('join', (args: any[]) =>
+      Array.isArray(args[0]) ? args[0].join(String(args[1] ?? '')) : String(args[0])
+    );
+    this.globalEnv.define('contains', (args: any[]) => String(args[0]).includes(String(args[1])));
+
+    // Standard Library: List & Aggregation
+    this.globalEnv.define('sum', (args: any[]) =>
+      Array.isArray(args[0]) ? args[0].reduce((acc, curr) => acc + Number(curr), 0) : 0
+    );
+    this.globalEnv.define('min_val', (args: any[]) =>
+      Array.isArray(args[0]) && args[0].length > 0 ? Math.min(...args[0].map(Number)) : 0
+    );
+    this.globalEnv.define('max_val', (args: any[]) =>
+      Array.isArray(args[0]) && args[0].length > 0 ? Math.max(...args[0].map(Number)) : 0
+    );
+    this.globalEnv.define('avg', (args: any[]) => {
+      if (!Array.isArray(args[0]) || args[0].length === 0) return 0;
+      const s = args[0].reduce((acc, curr) => acc + Number(curr), 0);
+      return s / args[0].length;
     });
-    this.globalEnv.define('triangle_area', (args: any[]) => 0.5 * Number(args[0]) * Number(args[1]));
-    this.globalEnv.define('triangle_perimeter', (args: any[]) => Number(args[0]) + Number(args[1]) + Number(args[2]));
+    this.globalEnv.define('reverse', (args: any[]) => {
+      if (Array.isArray(args[0])) return [...args[0]].reverse();
+      if (typeof args[0] === 'string') return args[0].split('').reverse().join('');
+      return args[0];
+    });
+
+    // Standard Library: System & Time
+    this.globalEnv.define('time_now', () => Date.now());
+
+    // Random Number Generator: %random(a, b)% or random(a, b)
+    this.globalEnv.define('random', (args: any[]) => {
+      const min = Number(args[0] ?? 0);
+      const max = Number(args[1] ?? 100);
+      const lo = Math.min(min, max);
+      const hi = Math.max(min, max);
+      if (Number.isInteger(min) && Number.isInteger(max)) {
+        return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+      }
+      return Math.random() * (hi - lo) + lo;
+    });
   }
 
   public log(...items: any[]) {
@@ -250,6 +416,7 @@ export class Interpreter {
   }
 
   public execute(ast: ProgramNode): any {
+    this.stepCount = 0;
     let res: any = null;
     for (const stmt of ast.statements) {
       res = this.executeStatement(stmt);
@@ -356,6 +523,14 @@ export class Interpreter {
       case 'While': {
         const w = node as WhileNode;
         while (Boolean(this.evaluate(w.condition))) {
+          if (++this.stepCount > Interpreter.MAX_STEPS) {
+            throw {
+              stage: 'runtime',
+              message: `BLang Sandbox Protection: Vượt quá giới hạn thực thi an toàn (${Interpreter.MAX_STEPS.toLocaleString()} bước lặp). Tự động dừng để tránh đơ trình duyệt.`,
+              line: w.line,
+              col: w.col,
+            };
+          }
           const sub = new Environment(this.currentEnv);
           const prev = this.currentEnv;
           this.currentEnv = sub;
@@ -384,6 +559,14 @@ export class Interpreter {
           };
         }
         for (const item of iter) {
+          if (++this.stepCount > Interpreter.MAX_STEPS) {
+            throw {
+              stage: 'runtime',
+              message: `BLang Sandbox Protection: Vượt quá giới hạn thực thi an toàn (${Interpreter.MAX_STEPS.toLocaleString()} bước lặp). Tự động dừng để bảo vệ tài nguyên.`,
+              line: f.line,
+              col: f.col,
+            };
+          }
           const sub = new Environment(this.currentEnv);
           sub.define(f.variable, item);
           const prev = this.currentEnv;

@@ -15,17 +15,22 @@ def _bl_strict_add(a, b):
 # Runtime helper: Math & Geometry Standard Functions
 PI = math.pi
 E = math.e
-sin = math.sin
-cos = math.cos
-tan = math.tan
-cotan = lambda x: 1.0 / math.tan(x)
+# Trigonometry (Degrees by default)
+sin = lambda d: math.sin(d * (math.pi / 180.0))
+cos = lambda d: math.cos(d * (math.pi / 180.0))
+tan = lambda d: math.tan(d * (math.pi / 180.0))
+cotan = lambda d: 1.0 / math.tan(d * (math.pi / 180.0))
 cot = cotan
+sind = sin
+cosd = cos
+tand = tan
+cotand = cotan
+sin_rad = math.sin
+cos_rad = math.cos
+tan_rad = math.tan
+cotan_rad = lambda r: 1.0 / math.tan(r)
 deg_to_rad = lambda d: d * (math.pi / 180.0)
 rad_to_deg = lambda r: r * (180.0 / math.pi)
-sind = lambda d: math.sin(d * (math.pi / 180.0))
-cosd = lambda d: math.cos(d * (math.pi / 180.0))
-tand = lambda d: math.tan(d * (math.pi / 180.0))
-cotand = lambda d: 1.0 / math.tan(d * (math.pi / 180.0))
 log = lambda x, base=10: math.log(x, base)
 ln = math.log
 log10 = math.log10
@@ -35,24 +40,100 @@ cbrt = lambda x: x ** (1.0 / 3.0)
 root = lambda x, n: x ** (1.0 / n)
 pow = math.pow
 power = pow
-circle_perimeter = lambda r: 2.0 * math.pi * r
-circle_circumference = circle_perimeter
-circle_area = lambda r: math.pi * (r ** 2)
-sphere_volume = lambda r: (4.0 / 3.0) * math.pi * (r ** 3)
-cylinder_volume = lambda r, h: math.pi * (r ** 2) * h
-cone_volume = lambda r, h: (1.0 / 3.0) * math.pi * (r ** 2) * h
-square_perimeter = lambda a: 4.0 * a
-square_area = lambda a: float(a * a)
-cube_volume = lambda a: float(a ** 3)
-rect_perimeter = lambda w, h: 2.0 * (w + h)
-rect_area = lambda w, h: float(w * h)
-cuboid_volume = lambda w, h, d: float(w * h * d)
-trapezoid_area = lambda a, b, h: ((a + b) * h) / 2.0
-trapezoid_perimeter = lambda a, b, c, d: float(a + b + c + d)
-polygon_perimeter = lambda n, s: float(n * s)
-polygon_area = lambda n, s: (n * (s ** 2)) / (4.0 * math.tan(math.pi / n))
-triangle_area = lambda b, h: 0.5 * b * h
-triangle_perimeter = lambda a, b, c: float(a + b + c)
+# Geometry: Circle (circle / cir, c / C / perimeter, s / S / area)
+circle_c = lambda r: 2.0 * math.pi * r
+circle_C = circle_c
+cir_c = circle_c
+cir_C = circle_c
+circle_perimeter = circle_c
+cir_perimeter = circle_c
+circle_circumference = circle_c
+cir_circumference = circle_c
+circle_s = lambda r: math.pi * (r ** 2)
+circle_S = circle_s
+cir_s = circle_s
+cir_S = circle_s
+circle_area = circle_s
+cir_area = circle_s
+# Geometry: Sphere
+sphere_v = lambda r: (4.0 / 3.0) * math.pi * (r ** 3)
+sphere_V = sphere_v
+sphere_volume = sphere_v
+sphere_s = lambda r: 4.0 * math.pi * (r ** 2)
+sphere_S = sphere_s
+sphere_area = sphere_s
+# Geometry: Cylinder
+cylinder_v = lambda r, h: math.pi * (r ** 2) * h
+cylinder_V = cylinder_v
+cylinder_volume = cylinder_v
+# Geometry: Cone
+cone_v = lambda r, h: (1.0 / 3.0) * math.pi * (r ** 2) * h
+cone_V = cone_v
+cone_volume = cone_v
+# Geometry: Square (square / sq, c / C / perimeter, s / S / area)
+square_c = lambda a: 4.0 * a
+square_C = square_c
+sq_c = square_c
+sq_C = square_c
+square_perimeter = square_c
+sq_perimeter = square_c
+square_s = lambda a: float(a * a)
+square_S = square_s
+sq_s = square_s
+sq_S = square_s
+square_area = square_s
+sq_area = square_s
+# Geometry: Cube
+cube_v = lambda a: float(a ** 3)
+cube_V = cube_v
+cube_volume = cube_v
+cube_s = lambda a: 6.0 * (a ** 2)
+cube_S = cube_s
+cube_area = cube_s
+# Geometry: Rectangle (rect / rectangle, c / C / perimeter, s / S / area)
+rect_c = lambda w, h: 2.0 * (w + h)
+rect_C = rect_c
+rectangle_c = rect_c
+rectangle_C = rect_c
+rect_perimeter = rect_c
+rectangle_perimeter = rect_c
+rect_s = lambda w, h: float(w * h)
+rect_S = rect_s
+rectangle_s = rect_s
+rectangle_S = rect_s
+rect_area = rect_s
+rectangle_area = rect_s
+# Geometry: Cuboid
+cuboid_v = lambda w, h, d: float(w * h * d)
+cuboid_V = cuboid_v
+cuboid_volume = cuboid_v
+# Geometry: Trapezoid
+trapezoid_s = lambda a, b, h: ((a + b) * h) / 2.0
+trapezoid_S = trapezoid_s
+trapezoid_area = trapezoid_s
+trapezoid_c = lambda a, b, c, d: float(a + b + c + d)
+trapezoid_C = trapezoid_c
+trapezoid_perimeter = trapezoid_c
+# Geometry: Regular Polygon
+polygon_c = lambda n, s: float(n * s)
+polygon_C = polygon_c
+polygon_perimeter = polygon_c
+polygon_s = lambda n, s: (n * (s ** 2)) / (4.0 * math.tan(math.pi / n))
+polygon_S = polygon_s
+polygon_area = polygon_s
+# Geometry: Triangle (triangle / tri, c / C / perimeter, s / S / area)
+triangle_s = lambda b, h: 0.5 * b * h
+triangle_S = triangle_s
+triangle_area = triangle_s
+tri_s = triangle_s
+tri_S = triangle_s
+tri_area = triangle_s
+triangle_c = lambda a, b, c: float(a + b + c)
+triangle_C = triangle_c
+triangle_perimeter = triangle_c
+tri_c = triangle_c
+tri_C = triangle_c
+tri_perimeter = triangle_c
 
 # --- Transpiled Program Statements ---
 print('==================================================')
@@ -75,51 +156,56 @@ print('sqrt(144)          =', bl_at_can_bac_2)
 print('cbrt(125)          =', bl_at_can_bac_3)
 print('root(81, 4)        =', bl_at_can_bac_4)
 print('pow(2, 10)         =', bl_dollar_luy_thua)
-bl_at_sin_90 = sind(90)
-bl_at_cos_60 = cosd(60)
-bl_at_tan_45 = tand(45)
-bl_at_cot_45 = cotand(45)
-print('--- 3. TRIGONOMETRY (GÓC & LƯỢNG GIÁC) ---')
-print('sin(90 deg)        =', bl_at_sin_90)
-print('cos(60 deg)        =', bl_at_cos_60)
-print('tan(45 deg)        =', bl_at_tan_45)
-print('cotan(45 deg)      =', bl_at_cot_45)
+bl_at_sin_90 = sin(90)
+bl_at_cos_60 = cos(60)
+bl_at_tan_45 = tan(45)
+bl_at_cot_45 = cotan(45)
+print('--- 3. TRIGONOMETRY (GÓC & LƯỢNG GIÁC THEO ĐỘ) ---')
+print('sin(90 độ)         =', bl_at_sin_90)
+print('cos(60 độ)         =', bl_at_cos_60)
+print('tan(45 độ)         =', bl_at_tan_45)
+print('cotan(45 độ)       =', bl_at_cot_45)
 bl_at_ban_kinh = 5
-_chu_vi_tron = circle_perimeter(bl_at_ban_kinh)
-_dien_tich_tron = circle_area(bl_at_ban_kinh)
-_the_tich_cau = sphere_volume(3)
-_the_tich_tru = cylinder_volume(3, 10)
-_the_tich_non = cone_volume(3, 10)
+_chu_vi_tron = cir_c(bl_at_ban_kinh)
+_dien_tich_tron = cir_s(bl_at_ban_kinh)
+_the_tich_cau = sphere_v(3)
+_the_tich_tru = cylinder_v(3, 10)
+_the_tich_non = cone_v(3, 10)
 print('--- 4. HÌNH TRÒN, CẦU, TRỤ, NÓN ---')
-print('Chu vi hình tròn (r=5)       =', _chu_vi_tron)
-print('Diện tích hình tròn (r=5)    =', _dien_tich_tron)
-print('Thể tích hình cầu (r=3)      =', _the_tich_cau)
-print('Thể tích hình trụ (r=3, h=10)=', _the_tich_tru)
-print('Thể tích hình nón (r=3, h=10)=', _the_tich_non)
+print('Chu vi hình tròn (cir_c, r=5)       =', _chu_vi_tron)
+print('Diện tích hình tròn (cir_s, r=5)    =', _dien_tich_tron)
+print('Thể tích hình cầu (sphere_v, r=3)   =', _the_tich_cau)
+print('Thể tích hình trụ (cylinder_v, r=3) =', _the_tich_tru)
+print('Thể tích hình nón (cone_v, r=3, h=10)=', _the_tich_non)
 bl_at_canh_vuong = 6
-_chu_vi_vuong = square_perimeter(bl_at_canh_vuong)
-_dien_tich_vuong = square_area(bl_at_canh_vuong)
-_the_tich_lap_phuong = cube_volume(4)
+_chu_vi_vuong = sq_c(bl_at_canh_vuong)
+_dien_tich_vuong = sq_s(bl_at_canh_vuong)
+_the_tich_lap_phuong = cube_v(4)
 print('--- 5. HÌNH VUÔNG & LẬP PHƯƠNG ---')
-print('Chu vi hình vuông (a=6)      =', _chu_vi_vuong)
-print('Diện tích hình vuông (a=6)   =', _dien_tich_vuong)
-print('Thể tích lập phương (a=4)    =', _the_tich_lap_phuong)
-_chu_vi_cn = rect_perimeter(8, 5)
-_dien_tich_cn = rect_area(8, 5)
-_the_tich_hop = cuboid_volume(4, 5, 6)
+print('Chu vi hình vuông (sq_c, a=6)      =', _chu_vi_vuong)
+print('Diện tích hình vuông (sq_s, a=6)   =', _dien_tich_vuong)
+print('Thể tích lập phương (cube_v, a=4)  =', _the_tich_lap_phuong)
+_chu_vi_cn = rect_c(8, 5)
+_dien_tich_cn = rect_s(8, 5)
+_the_tich_hop = cuboid_v(4, 5, 6)
 print('--- 6. HÌNH CHỮ NHẬT & HÌNH HỘP ---')
-print('Chu vi hình chữ nhật (8x5)   =', _chu_vi_cn)
-print('Diện tích hình chữ nhật (8x5)=', _dien_tich_cn)
-print('Thể tích hình hộp (4x5x6)    =', _the_tich_hop)
-_dien_tich_thang = trapezoid_area(6, 10, 4)
-_chu_vi_thang = trapezoid_perimeter(6, 10, 5, 5)
-_chu_vi_luc_giac = polygon_perimeter(6, 4)
-_dien_tich_luc_giac = polygon_area(6, 4)
+print('Chu vi hình chữ nhật (rect_c, 8x5)   =', _chu_vi_cn)
+print('Diện tích hình chữ nhật (rect_s, 8x5)=', _dien_tich_cn)
+print('Thể tích hình hộp (cuboid_v, 4x5x6)  =', _the_tich_hop)
+_dien_tich_thang = trapezoid_s(6, 10, 4)
+_chu_vi_thang = trapezoid_c(6, 10, 5, 5)
+_chu_vi_luc_giac = polygon_c(6, 4)
+_dien_tich_luc_giac = polygon_s(6, 4)
 print('--- 7. HÌNH THANG & ĐA GIÁC ĐỀU ---')
-print('Diện tích hình thang (6, 10, h=4)   =', _dien_tich_thang)
-print('Chu vi hình thang (6, 10, 5, 5)     =', _chu_vi_thang)
-print('Chu vi lục giác đều (n=6, s=4)      =', _chu_vi_luc_giac)
-print('Diện tích lục giác đều (n=6, s=4)   =', _dien_tich_luc_giac)
+print('Diện tích hình thang (trapezoid_s)   =', _dien_tich_thang)
+print('Chu vi hình thang (trapezoid_c)      =', _chu_vi_thang)
+print('Chu vi lục giác đều (polygon_c)     =', _chu_vi_luc_giac)
+print('Diện tích lục giác đều (polygon_s)  =', _dien_tich_luc_giac)
+_chu_vi_tam_giac = tri_c(3, 4, 5)
+_dien_tich_tam_giac = tri_s(6, 4)
+print('--- 8. HÌNH TAM GIÁC (TRI / TRIANGLE) ---')
+print('Chu vi tam giác (tri_c, 3, 4, 5)    =', _chu_vi_tam_giac)
+print('Diện tích tam giác (tri_s, b=6, h=4)=', _dien_tich_tam_giac)
 print('==================================================')
 print('>>> TẤT CẢ CÁC PHÉP TÍNH TOÁN HỌC ĐÃ HOÀN THÀNH <<<')
 print('==================================================')

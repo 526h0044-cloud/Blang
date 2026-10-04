@@ -1,1 +1,44 @@
 @import "tailwindcss";
+
+/* ==============================================================================
+   Prism.js Syntax Highlighting Theme for BLang
+   ============================================================================== */
+.token.comment {
+  color: #64748b;
+  font-style: italic;
+}
+.token.string {
+  color: #a5f3fc;
+}
+.token.sigil-num,
+.token.variable-num {
+  color: #fcd34d;
+  font-weight: 600;
+}
+.token.sigil-str,
+.token.variable-str {
+  color: #6ee7b7;
+  font-weight: 600;
+}
+.token.sigil-tmp,
+.token.variable-tmp {
+  color: #c084fc;
+  font-weight: 600;
+}
+.token.keyword {
+  color: #818cf8;
+  font-weight: 600;
+}
+.token.builtin {
+  color: #38bdf8;
+  font-weight: 500;
+}
+.token.number {
+  color: #fb923c;
+}
+.token.operator {
+  color: #f472b6;
+}
+.token.punctuation {
+  color: #94a3b8;
+}

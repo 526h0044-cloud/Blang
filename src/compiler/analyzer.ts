@@ -81,20 +81,55 @@ export class SemanticAnalyzer {
       'log', 'log10', 'log2', 'ln',
       // Roots & Powers
       'sqrt', 'cbrt', 'root', 'pow', 'power', 'abs', 'round', 'floor', 'ceil',
-      // Trigonometric & Angles
+      // Trigonometric & Angles (degrees by default, plus rad conversions)
       'sin', 'cos', 'tan', 'cotan', 'cot', 'deg_to_rad', 'rad_to_deg',
       'sind', 'cosd', 'tand', 'cotand',
-      // Geometry: Circle, Sphere, Cylinder, Cone
+      'sin_rad', 'cos_rad', 'tan_rad', 'cotan_rad',
+      // Geometry: Circle (circle / cir, c / C / perimeter, s / S / area)
+      'circle_c', 'circle_C', 'cir_c', 'cir_C',
+      'circle_s', 'circle_S', 'cir_s', 'cir_S',
       'circle_perimeter', 'circle_circumference', 'circle_area',
-      'sphere_volume', 'cylinder_volume', 'cone_volume',
-      // Geometry: Square & Cube
-      'square_perimeter', 'square_area', 'cube_volume',
-      // Geometry: Rectangle & Cuboid
-      'rect_perimeter', 'rect_area', 'cuboid_volume',
-      // Geometry: Trapezoid & Regular Polygon & Triangle
-      'trapezoid_area', 'trapezoid_perimeter',
-      'polygon_perimeter', 'polygon_area',
-      'triangle_area', 'triangle_perimeter',
+      'cir_perimeter', 'cir_circumference', 'cir_area',
+      // Geometry: Sphere (sphere, v / V / volume, s / S / area)
+      'sphere_v', 'sphere_V', 'sphere_volume',
+      'sphere_s', 'sphere_S', 'sphere_area',
+      // Geometry: Cylinder (cylinder, v / V / volume)
+      'cylinder_v', 'cylinder_V', 'cylinder_volume',
+      // Geometry: Cone (cone, v / V / volume)
+      'cone_v', 'cone_V', 'cone_volume',
+      // Geometry: Square (square / sq, c / C / perimeter, s / S / area)
+      'square_c', 'square_C', 'sq_c', 'sq_C',
+      'square_s', 'square_S', 'sq_s', 'sq_S',
+      'square_perimeter', 'square_area',
+      'sq_perimeter', 'sq_area',
+      // Geometry: Cube (cube, v / V / volume, s / S / area)
+      'cube_v', 'cube_V', 'cube_volume',
+      'cube_s', 'cube_S', 'cube_area',
+      // Geometry: Rectangle (rect / rectangle, c / C / perimeter, s / S / area)
+      'rect_c', 'rect_C', 'rectangle_c', 'rectangle_C',
+      'rect_s', 'rect_S', 'rectangle_s', 'rectangle_S',
+      'rect_perimeter', 'rect_area', 'rectangle_perimeter', 'rectangle_area',
+      // Geometry: Cuboid (cuboid, v / V / volume)
+      'cuboid_v', 'cuboid_V', 'cuboid_volume',
+      // Geometry: Trapezoid (trapezoid, c / C / perimeter, s / S / area)
+      'trapezoid_c', 'trapezoid_C', 'trapezoid_perimeter',
+      'trapezoid_s', 'trapezoid_S', 'trapezoid_area',
+      // Geometry: Regular Polygon (polygon, c / C / perimeter, s / S / area)
+      'polygon_c', 'polygon_C', 'polygon_perimeter',
+      'polygon_s', 'polygon_S', 'polygon_area',
+      // Geometry: Triangle (triangle / tri, c / C / perimeter, s / S / area)
+      'triangle_c', 'triangle_C', 'triangle_perimeter',
+      'triangle_s', 'triangle_S', 'triangle_area',
+      'tri_c', 'tri_C', 'tri_perimeter',
+      'tri_s', 'tri_S', 'tri_area',
+      // Standard Library: String Operations
+      'upper', 'lower', 'trim', 'replace', 'split', 'join', 'contains',
+      // Standard Library: List & Aggregation
+      'sum', 'min_val', 'max_val', 'avg', 'reverse',
+      // Standard Library: System & Time
+      'time_now',
+      // Random Generator
+      'random',
     ];
     for (const b of builtins) {
       this.globalScope.define({ name: b, type: 'function', line: 0, col: 0 });

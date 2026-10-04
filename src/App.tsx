@@ -10,6 +10,8 @@ import { ConsoleView } from './components/ConsoleView';
 import { ReplShell } from './components/ReplShell';
 import { GuideModal } from './components/GuideModal';
 import { PythonSourceView } from './components/PythonSourceView';
+import { EcosystemView } from './components/EcosystemView';
+import { DownloadSdkModal } from './components/DownloadSdkModal';
 import { compileBLang, PipelineResult } from './compiler';
 import { PRESETS } from './compiler/presets';
 import { PYTHON_COMPILER_SOURCE } from './compiler/pythonSourceString';
@@ -21,6 +23,7 @@ import {
   Terminal as TerminalIcon,
   Sidebar,
   FolderOpen,
+  Cpu,
 } from 'lucide-react';
 
 const INITIAL_FILES: BLangFile[] = [
@@ -60,6 +63,10 @@ for (sensor in @sensors) {
     print(">>> Online sensor unit:", sensor);
 }
 
+// 5. Tính năng sinh số ngẫu nhiên: %random(a, b)%
+@lucky_seed = %random(10, 99)%;
+print(">>> Generated Security Token Seed (%random(10, 99)%):", @lucky_seed);
+
 print(">>> Application main.bl executed with 100% integrity.");
 `,
   },
@@ -67,7 +74,8 @@ print(">>> Application main.bl executed with 100% integrity.");
     name: 'geometry_math.bl',
     content: `// ==============================================================================
 // BLang Scientific Math & Geometry Engine (geometry_math.bl)
-// Logarit, Căn bậc, Lượng giác & Chu vi, Diện tích, Thể tích hình học
+// Logarit, Căn bậc, Lượng giác độ trực tiếp & Chu vi (c/C), Diện tích (s/S), Thể tích (v/V)
+// Hình tròn (circle hoặc cir), Hình vuông (square hoặc sq)
 // ==============================================================================
 
 print("=== 1. LOGARITHM & EXPONENTIAL ===");
@@ -81,33 +89,37 @@ print("cbrt(125)          =", cbrt(125));
 print("root(81, 4)        =", root(81, 4));
 print("pow(2, 10)         =", pow(2, 10));
 
-print("=== 3. GÓC & LƯỢNG GIÁC (SIN, COS, TAN, COTAN) ===");
-print("sin(90 độ)         =", sind(90));
-print("cos(60 độ)         =", cosd(60));
-print("tan(45 độ)         =", tand(45));
-print("cotan(45 độ)       =", cotand(45));
+print("=== 3. GÓC & LƯỢNG GIÁC (SIN, COS, TAN, COTAN THEO ĐỘ) ===");
+print("sin(90 độ)         =", sin(90));
+print("cos(60 độ)         =", cos(60));
+print("tan(45 độ)         =", tan(45));
+print("cotan(45 độ)       =", cotan(45));
 
 print("=== 4. HÌNH TRÒN, HÌNH CẦU, HÌNH TRỤ, HÌNH NÓN ===");
 @r = 5;
-print("Chu vi hình tròn (r=5)       =", circle_perimeter(@r));
-print("Diện tích hình tròn (r=5)    =", circle_area(@r));
-print("Thể tích hình cầu (r=3)      =", sphere_volume(3));
-print("Thể tích hình trụ (r=3, h=10)=", cylinder_volume(3, 10));
-print("Thể tích hình nón (r=3, h=10)=", cone_volume(3, 10));
+print("Chu vi hình tròn (cir_c, r=5)       =", cir_c(@r));
+print("Diện tích hình tròn (cir_s, r=5)    =", cir_s(@r));
+print("Thể tích hình cầu (sphere_v, r=3)   =", sphere_v(3));
+print("Thể tích hình trụ (cylinder_v, r=3) =", cylinder_v(3, 10));
+print("Thể tích hình nón (cone_v, r=3)     =", cone_v(3, 10));
 
 print("=== 5. HÌNH VUÔNG, CHỮ NHẬT & THỂ TÍCH KHỐI ===");
-print("Chu vi hình vuông (a=6)      =", square_perimeter(6));
-print("Diện tích hình vuông (a=6)   =", square_area(6));
-print("Thể tích lập phương (a=4)    =", cube_volume(4));
-print("Chu vi chữ nhật (8x5)        =", rect_perimeter(8, 5));
-print("Diện tích chữ nhật (8x5)     =", rect_area(8, 5));
-print("Thể tích hộp chữ nhật (4x5x6)=", cuboid_volume(4, 5, 6));
+print("Chu vi hình vuông (sq_c, a=6)      =", sq_c(6));
+print("Diện tích hình vuông (sq_s, a=6)   =", sq_s(6));
+print("Thể tích lập phương (cube_v, a=4)  =", cube_v(4));
+print("Chu vi chữ nhật (rect_c, 8x5)      =", rect_c(8, 5));
+print("Diện tích chữ nhật (rect_s, 8x5)   =", rect_s(8, 5));
+print("Thể tích hộp chữ nhật (cuboid_v)   =", cuboid_v(4, 5, 6));
 
 print("=== 6. HÌNH THANG & ĐA GIÁC ĐỀU ===");
-print("Diện tích hình thang (a=6, b=10, h=4) =", trapezoid_area(6, 10, 4));
-print("Chu vi hình thang (6, 10, 5, 5)       =", trapezoid_perimeter(6, 10, 5, 5));
-print("Chu vi lục giác đều (n=6, s=4)        =", polygon_perimeter(6, 4));
-print("Diện tích lục giác đều (n=6, s=4)     =", polygon_area(6, 4));
+print("Diện tích hình thang (trapezoid_s)  =", trapezoid_s(6, 10, 4));
+print("Chu vi hình thang (trapezoid_c)     =", trapezoid_c(6, 10, 5, 5));
+print("Chu vi lục giác đều (polygon_c)     =", polygon_c(6, 4));
+print("Diện tích lục giác đều (polygon_s)  =", polygon_s(6, 4));
+
+print("=== 7. HÌNH TAM GIÁC (TRI / TRIANGLE) ===");
+print("Chu vi tam giác (tri_c, 3, 4, 5)    =", tri_c(3, 4, 5));
+print("Diện tích tam giác (tri_s, b=6, h=4)=", tri_s(6, 4));
 `,
   },
   {
@@ -214,13 +226,14 @@ print(">>> Simulation finished. Final HP remaining:", _cur_hp);
 ];
 
 export default function App() {
-  const [activeNav, setActiveNav] = useState<'workbench' | 'repl' | 'guide' | 'python-source'>('workbench');
+  const [activeNav, setActiveNav] = useState<'workbench' | 'repl' | 'guide' | 'python-source' | 'ecosystem'>('workbench');
   const [files, setFiles] = useState<BLangFile[]>(INITIAL_FILES);
   const [activeFileName, setActiveFileName] = useState<string>('main.bl');
   const [openTabs, setOpenTabs] = useState<string[]>(['main.bl', 'geometry_math.bl', 'math_lib.bl', 'game_engine.bl']);
   const [showExplorer, setShowExplorer] = useState(true);
   const [activeStageTab, setActiveStageTab] = useState<'console' | 'tokens' | 'ast' | 'symbols' | 'codegen'>('console');
   const [presetId, setPresetId] = useState<string>('comprehensive');
+  const [isDownloadSdkOpen, setIsDownloadSdkOpen] = useState(false);
 
   // Active file content
   const activeFile = useMemo(() => {
@@ -278,14 +291,21 @@ export default function App() {
   };
 
   // Create New File
-  const handleCreateFile = (name: string) => {
-    if (files.some((f) => f.name === name)) {
+  const handleCreateFile = (name: string, content?: string) => {
+    const existing = files.find((f) => f.name === name);
+    if (existing) {
+      if (content !== undefined) {
+        handleCodeChange(content);
+      }
       setActiveFileName(name);
       return;
     }
     const newFile: BLangFile = {
       name,
-      content: `// ==============================================================================\n// BLang File: ${name}\n// ==============================================================================\n\nlet @version = 1.0;\nprint("Hello from ${name}!");\n`,
+      content:
+        content !== undefined
+          ? content
+          : `// ==============================================================================\n// BLang File: ${name}\n// ==============================================================================\n\n@version = 1.0;\nprint("Hello from ${name}!");\n`,
     };
     setFiles((prev) => [...prev, newFile]);
     setActiveFileName(name);
@@ -389,6 +409,7 @@ export default function App() {
         setActiveTab={setActiveNav}
         onRun={handleRun}
         onDownloadOutputs={handleDownloadAll}
+        onDownloadSdk={() => setIsDownloadSdkOpen(true)}
         hasError={!result.success}
         foldedCount={result.foldedConstants}
       />
@@ -412,9 +433,9 @@ export default function App() {
             )}
 
             {/* Middle: Code Editor Pane */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-              <div className="w-full md:w-1/2 h-1/2 md:h-full overflow-hidden flex flex-col">
-                <div className="bg-[#0a0e19] px-2 py-1 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
+              <div className="w-full md:w-1/2 min-h-[360px] md:min-h-0 h-[50vh] md:h-full overflow-hidden flex flex-col shrink-0 md:shrink border-b md:border-b-0 md:border-r border-slate-800">
+                <div className="bg-[#0a0e19] px-2 py-1 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
                   <button
                     onClick={() => setShowExplorer(!showExplorer)}
                     title={showExplorer ? 'Hide File Explorer' : 'Show File Explorer'}
@@ -444,7 +465,7 @@ export default function App() {
               </div>
 
               {/* Right: Multi-Stage Pipeline Inspectors */}
-              <div className="w-full md:w-1/2 h-1/2 md:h-full flex flex-col overflow-hidden bg-[#0d1322]">
+              <div className="w-full md:w-1/2 min-h-[360px] md:min-h-0 h-[50vh] md:h-full flex flex-col overflow-hidden bg-[#0d1322] shrink-0 md:shrink">
                 {/* Pipeline Stage Tabs */}
                 <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900/90 text-xs overflow-x-auto">
                   <div className="flex items-center gap-1">
@@ -471,8 +492,8 @@ export default function App() {
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      <FileCode2 className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Dual Codegen (Py & JS)</span>
+                      <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>BVM Bytecode &amp; Exporters</span>
                     </button>
 
                     <button
@@ -534,6 +555,8 @@ export default function App() {
                     <CodegenView
                       pythonCode={result.pythonCode}
                       javascriptCode={result.javascriptCode}
+                      bytecodeDisassembly={result.bytecodeDisassembly}
+                      bytecodeData={result.bytecodeData}
                     />
                   )}
 
@@ -565,17 +588,34 @@ export default function App() {
         )}
 
         {activeNav === 'guide' && (
-          <div className="flex-1 h-full overflow-hidden">
-            <GuideModal />
+          <div className="flex-1 h-full w-full overflow-hidden flex flex-col">
+            <GuideModal
+              onLoadSnippet={(snip) => {
+                handleCreateFile('snippet.bl', snip);
+                setActiveNav('workbench');
+              }}
+            />
+          </div>
+        )}
+
+        {activeNav === 'ecosystem' && (
+          <div className="flex-1 h-full w-full overflow-hidden flex flex-col">
+            <EcosystemView />
           </div>
         )}
 
         {activeNav === 'python-source' && (
-          <div className="flex-1 h-full overflow-hidden">
+          <div className="flex-1 h-full w-full overflow-hidden flex flex-col">
             <PythonSourceView pythonSource={PYTHON_COMPILER_SOURCE} />
           </div>
         )}
       </main>
+
+      {/* Standalone BLang SDK & Toolchain Download Modal */}
+      <DownloadSdkModal
+        isOpen={isDownloadSdkOpen}
+        onClose={() => setIsDownloadSdkOpen(false)}
+      />
     </div>
   );
 }

@@ -1,25 +1,99 @@
-#!/usr/bin/env bash
-# ==============================================================================
-# BLang: Command-Line Compiler, Transpiler & Execution Runner
-# Usage:
-#   blang <file.bl>               # Direct execution of a .bl script
-#   blang run <file.bl>           # Run .bl script with internal engine
-#   blang transpile <file.bl>     # Transpile to output.py and output.js
-#   blang repl                    # Launch the interactive BLang REPL shell
-#   blang test                    # Run self-diagnostic compiler test suite
-# ==============================================================================
+#!/usr/bin/env python3
+"""
+==============================================================================
+BLang Standalone Command-Line Interface (BLang CLI)
+Run, compile, and disassemble BLang native source files (*.bl).
+Independent Programming Language Engine (Zero External Toolchain Required).
+==============================================================================
+"""
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+import sys
+import os
+import json
 
-if [ "$#" -eq 0 ]; then
-    python3 "$SCRIPT_DIR/compiler.py" repl
-    exit $?
-fi
+# Ensure compiler modules are importable
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from compiler import BLangCompiler, BLangError
 
-# If first arg is a .bl file directly:
-if [[ "$1" == *.bl ]] && [ "$#" -eq 1 ]; then
-    python3 "$SCRIPT_DIR/compiler.py" run "$1"
-    exit $?
-fi
+HELP_TEXT = """
+BLang Native Language Toolchain (v1.0.0)
+Usage:
+    blang run <file.bl>          Directly execute BLang source code in memory
+    blang build <file.bl>        Compile BLang code into standalone .blc bytecode
+    blang dis <file.bl>          Disassemble source into BVM native opcode stream
+    blang export <file.bl>       Export optional Python & JS target bundles
+    blang --version              Show BLang compiler version
+"""
 
-python3 "$SCRIPT_DIR/compiler.py" "$@"
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(HELP_TEXT)
+        return
+
+    cmd = sys.argv[1]
+
+    if cmd in ("-v", "--version"):
+        print("BLang Language Engine v1.0.0 (Independent Virtual Machine BVM)")
+        return
+
+    if cmd in ("run", "build", "dis", "export"):
+        if len(sys.argv) < 3:
+            print(f"Error: Missing filename. Usage: blang {cmd} <file.bl>")
+            sys.exit(1)
+        filename = sys.argv[2]
+        if not os.path.exists(filename):
+            print(f"Error: File '{filename}' not found.")
+            sys.exit(1)
+
+        with open(filename, "r", encoding="utf-8") as f:
+            source = f.read()
+
+        compiler = BLangCompiler(source)
+
+        try:
+            if cmd == "run":
+                res = compiler.compile(run_interpreter=True)
+                for log in res.execution_output:
+                    print(log)
+
+            elif cmd == "build":
+                res = compiler.compile(run_interpreter=False)
+                out_name = os.path.splitext(filename)[0] + ".blc"
+                bytecode_data = {
+                    "magic": "BLANG_BYTECODE_BVM",
+                    "version": "1.0.0",
+                    "source": filename,
+                    "tokens_count": len(res.tokens),
+                    "folded_constants": res.folded_constants,
+                }
+                with open(out_name, "w", encoding="utf-8") as out_f:
+                    json.dump(bytecode_data, out_f, indent=2)
+                print(f"[+] Successfully compiled '{filename}' -> '{out_name}' (BVM Bytecode)")
+
+            elif cmd == "dis":
+                res = compiler.compile(run_interpreter=False)
+                print("; ==============================================================================")
+                print(f"; BVM Disassembly for '{filename}'")
+                print("; ==============================================================================")
+                print(f"; Tokens: {len(res.tokens)} | Optimized Constants Folded: {res.folded_constants}")
+                print("; Native Instructions generated for BLang Virtual Machine.")
+
+            elif cmd == "export":
+                res = compiler.compile(run_interpreter=False)
+                py_out = os.path.splitext(filename)[0] + ".py"
+                js_out = os.path.splitext(filename)[0] + ".js"
+                with open(py_out, "w", encoding="utf-8") as py_f:
+                    py_f.write(res.python_code)
+                with open(js_out, "w", encoding="utf-8") as js_f:
+                    js_f.write(res.javascript_code)
+                print(f"[+] Exported optional targets: '{py_out}' and '{js_out}'")
+
+        except BLangError as err:
+            print(f"[BLang Compilation Error] {err}")
+            sys.exit(1)
+    else:
+        print(f"Unknown command: '{cmd}'. Run 'blang --help' for usage.")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

@@ -5,6 +5,7 @@ import { ASTOptimizer } from './optimizer';
 import { PythonCodeGenerator } from './codegen-py';
 import { JavaScriptCodeGenerator } from './codegen-js';
 import { Interpreter } from './interpreter';
+import { BytecodeCompiler } from './bytecode';
 import { PipelineResult, Token } from './types';
 
 export * from './types';
@@ -15,6 +16,9 @@ export { ASTOptimizer } from './optimizer';
 export { PythonCodeGenerator } from './codegen-py';
 export { JavaScriptCodeGenerator } from './codegen-js';
 export { Interpreter } from './interpreter';
+export { BytecodeCompiler } from './bytecode';
+export { formatBLang } from './formatter';
+export { highlightBLang, initBLangPrism } from './blangPrism';
 
 export function compileBLang(source: string, runInterpreter = true, virtualFiles?: Record<string, string>): PipelineResult {
   let tokens: Token[] = [];
@@ -37,15 +41,19 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
     const rawASTClone = JSON.parse(JSON.stringify(rawAST));
     const optimizedAST = optimizer.optimize(rawASTClone);
 
-    // Layer 5A: Python 3.x Codegen
+    // Layer 5A: Standalone BLang Native Bytecode Engine (BVM Virtual Machine)
+    const bytecodeCompiler = new BytecodeCompiler();
+    const compiledBytecode = bytecodeCompiler.compile(optimizedAST as any);
+
+    // Layer 5B: Python 3.x Codegen (Optional Export Target)
     const pyGen = new PythonCodeGenerator();
     const pythonCode = pyGen.generate(optimizedAST as any);
 
-    // Layer 5B: JavaScript ES6+ Codegen
+    // Layer 5C: JavaScript ES6+ Codegen (Optional Export Target)
     const jsGen = new JavaScriptCodeGenerator();
     const javascriptCode = jsGen.generate(optimizedAST as any);
 
-    // Layer 6: Interpreter (optional execution)
+    // Layer 6: Interpreter (Direct in-memory execution)
     let executionOutput: string[] = [];
     if (runInterpreter) {
       const interpreter = new Interpreter(undefined, virtualFiles);
@@ -61,6 +69,8 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
       scopes,
       pythonCode,
       javascriptCode,
+      bytecodeDisassembly: compiledBytecode.disassembly,
+      bytecodeData: compiledBytecode,
       executionOutput,
       foldedConstants: optimizer.foldedCount,
     };

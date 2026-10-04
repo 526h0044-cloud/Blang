@@ -1,6 +1,7 @@
 // ==============================================================================
 // BLang Scientific Math & Geometry Engine (geometry_math.bl)
-// Logarit, Căn bậc, Lượng giác & Chu vi, Diện tích, Thể tích hình học
+// Logarit, Căn bậc, Lượng giác độ trực tiếp & Chu vi (c/C), Diện tích (s/S), Thể tích (v/V)
+// Hình tròn (circle hoặc cir), Hình vuông (square hoặc sq)
 // ==============================================================================
 
 print("==================================================");
@@ -30,67 +31,75 @@ print("cbrt(125)          =", @can_bac_3);
 print("root(81, 4)        =", @can_bac_4);
 print("pow(2, 10)         =", $luy_thua);
 
-// 3. Góc & Lượng giác: sin, cos, tan, cotan (Độ & Radian)
-@sin_90 = sind(90);            // sin(90 độ) = 1
-@cos_60 = cosd(60);            // cos(60 độ) = 0.5
-@tan_45 = tand(45);            // tan(45 độ) = 1
-@cot_45 = cotand(45);          // cotan(45 độ) = 1
+// 3. Góc & Lượng giác: sin, cos, tan, cotan (Tính theo độ trực tiếp)
+@sin_90 = sin(90);             // sin(90 độ) = 1
+@cos_60 = cos(60);             // cos(60 độ) = 0.5
+@tan_45 = tan(45);             // tan(45 độ) = 1
+@cot_45 = cotan(45);           // cotan(45 độ) = 1
 
-print("--- 3. TRIGONOMETRY (GÓC & LƯỢNG GIÁC) ---");
-print("sin(90 deg)        =", @sin_90);
-print("cos(60 deg)        =", @cos_60);
-print("tan(45 deg)        =", @tan_45);
-print("cotan(45 deg)      =", @cot_45);
+print("--- 3. TRIGONOMETRY (GÓC & LƯỢNG GIÁC THEO ĐỘ) ---");
+print("sin(90 độ)         =", @sin_90);
+print("cos(60 độ)         =", @cos_60);
+print("tan(45 độ)         =", @tan_45);
+print("cotan(45 độ)       =", @cot_45);
 
-// 4. Hình tròn, Cầu, Trụ, Nón (Chu vi, Diện tích, Thể tích)
+// 4. Hình tròn: circle hoặc cir, chu vi: c/C, diện tích: s/S
 @ban_kinh = 5;
-_chu_vi_tron = circle_perimeter(@ban_kinh);
-_dien_tich_tron = circle_area(@ban_kinh);
-_the_tich_cau = sphere_volume(3);
-_the_tich_tru = cylinder_volume(3, 10);
-_the_tich_non = cone_volume(3, 10);
+_chu_vi_tron = cir_c(@ban_kinh);         // Chu vi hình tròn: cir_c hoặc circle_c hoặc circle_C
+_dien_tich_tron = cir_s(@ban_kinh);      // Diện tích hình tròn: cir_s hoặc circle_s hoặc circle_S
+_the_tich_cau = sphere_v(3);             // Thể tích hình cầu: sphere_v hoặc sphere_V
+_the_tich_tru = cylinder_v(3, 10);       // Thể tích hình trụ: cylinder_v hoặc cylinder_V
+_the_tich_non = cone_v(3, 10);           // Thể tích hình nón: cone_v hoặc cone_V
 
 print("--- 4. HÌNH TRÒN, CẦU, TRỤ, NÓN ---");
-print("Chu vi hình tròn (r=5)       =", _chu_vi_tron);
-print("Diện tích hình tròn (r=5)    =", _dien_tich_tron);
-print("Thể tích hình cầu (r=3)      =", _the_tich_cau);
-print("Thể tích hình trụ (r=3, h=10)=", _the_tich_tru);
-print("Thể tích hình nón (r=3, h=10)=", _the_tich_non);
+print("Chu vi hình tròn (cir_c, r=5)       =", _chu_vi_tron);
+print("Diện tích hình tròn (cir_s, r=5)    =", _dien_tich_tron);
+print("Thể tích hình cầu (sphere_v, r=3)   =", _the_tich_cau);
+print("Thể tích hình trụ (cylinder_v, r=3) =", _the_tich_tru);
+print("Thể tích hình nón (cone_v, r=3, h=10)=", _the_tich_non);
 
-// 5. Hình vuông & Lập phương
+// 5. Hình vuông: square hoặc sq, chu vi: c/C, diện tích: s/S
 @canh_vuong = 6;
-_chu_vi_vuong = square_perimeter(@canh_vuong);
-_dien_tich_vuong = square_area(@canh_vuong);
-_the_tich_lap_phuong = cube_volume(4);
+_chu_vi_vuong = sq_c(@canh_vuong);       // Chu vi hình vuông: sq_c hoặc square_c hoặc sq_C
+_dien_tich_vuong = sq_s(@canh_vuong);    // Diện tích hình vuông: sq_s hoặc square_s hoặc sq_S
+_the_tich_lap_phuong = cube_v(4);        // Thể tích lập phương: cube_v hoặc cube_V
 
 print("--- 5. HÌNH VUÔNG & LẬP PHƯƠNG ---");
-print("Chu vi hình vuông (a=6)      =", _chu_vi_vuong);
-print("Diện tích hình vuông (a=6)   =", _dien_tich_vuong);
-print("Thể tích lập phương (a=4)    =", _the_tich_lap_phuong);
+print("Chu vi hình vuông (sq_c, a=6)      =", _chu_vi_vuong);
+print("Diện tích hình vuông (sq_s, a=6)   =", _dien_tich_vuong);
+print("Thể tích lập phương (cube_v, a=4)  =", _the_tich_lap_phuong);
 
 // 6. Hình chữ nhật & Hình hộp chữ nhật
-_chu_vi_cn = rect_perimeter(8, 5);
-_dien_tich_cn = rect_area(8, 5);
-_the_tich_hop = cuboid_volume(4, 5, 6);
+_chu_vi_cn = rect_c(8, 5);               // Chu vi chữ nhật: rect_c hoặc rect_C
+_dien_tich_cn = rect_s(8, 5);            // Diện tích chữ nhật: rect_s hoặc rect_S
+_the_tich_hop = cuboid_v(4, 5, 6);       // Thể tích hộp chữ nhật: cuboid_v hoặc cuboid_V
 
 print("--- 6. HÌNH CHỮ NHẬT & HÌNH HỘP ---");
-print("Chu vi hình chữ nhật (8x5)   =", _chu_vi_cn);
-print("Diện tích hình chữ nhật (8x5)=", _dien_tich_cn);
-print("Thể tích hình hộp (4x5x6)    =", _the_tich_hop);
+print("Chu vi hình chữ nhật (rect_c, 8x5)   =", _chu_vi_cn);
+print("Diện tích hình chữ nhật (rect_s, 8x5)=", _dien_tich_cn);
+print("Thể tích hình hộp (cuboid_v, 4x5x6)  =", _the_tich_hop);
 
-// 7. Hình thang (Trapezoid) & Đa giác đều (Regular Polygon)
-_dien_tich_thang = trapezoid_area(6, 10, 4); // (đáy 1 + đáy 2) * h / 2
-_chu_vi_thang = trapezoid_perimeter(6, 10, 5, 5);
+// 7. Hình thang & Đa giác đều
+_dien_tich_thang = trapezoid_s(6, 10, 4); // trapezoid_s hoặc trapezoid_S
+_chu_vi_thang = trapezoid_c(6, 10, 5, 5); // trapezoid_c hoặc trapezoid_C
 
 // Lục giác đều (6 cạnh, mỗi cạnh dài 4)
-_chu_vi_luc_giac = polygon_perimeter(6, 4);
-_dien_tich_luc_giac = polygon_area(6, 4);
+_chu_vi_luc_giac = polygon_c(6, 4);
+_dien_tich_luc_giac = polygon_s(6, 4);
 
 print("--- 7. HÌNH THANG & ĐA GIÁC ĐỀU ---");
-print("Diện tích hình thang (6, 10, h=4)   =", _dien_tich_thang);
-print("Chu vi hình thang (6, 10, 5, 5)     =", _chu_vi_thang);
-print("Chu vi lục giác đều (n=6, s=4)      =", _chu_vi_luc_giac);
-print("Diện tích lục giác đều (n=6, s=4)   =", _dien_tich_luc_giac);
+print("Diện tích hình thang (trapezoid_s)   =", _dien_tich_thang);
+print("Chu vi hình thang (trapezoid_c)      =", _chu_vi_thang);
+print("Chu vi lục giác đều (polygon_c)     =", _chu_vi_luc_giac);
+print("Diện tích lục giác đều (polygon_s)  =", _dien_tich_luc_giac);
+
+// 8. Hình tam giác (triangle hoặc tri, chu vi: c/C, diện tích: s/S)
+_chu_vi_tam_giac = tri_c(3, 4, 5);        // tri_c hoặc triangle_c (3 cạnh: a, b, c)
+_dien_tich_tam_giac = tri_s(6, 4);        // tri_s hoặc triangle_s (đáy b=6, chiều cao h=4 => 0.5*b*h = 12)
+
+print("--- 8. HÌNH TAM GIÁC (TRI / TRIANGLE) ---");
+print("Chu vi tam giác (tri_c, 3, 4, 5)    =", _chu_vi_tam_giac);
+print("Diện tích tam giác (tri_s, b=6, h=4)=", _dien_tich_tam_giac);
 
 print("==================================================");
 print(">>> TẤT CẢ CÁC PHÉP TÍNH TOÁN HỌC ĐÃ HOÀN THÀNH <<<");

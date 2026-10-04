@@ -1,11 +1,12 @@
 import React from 'react';
-import { Play, FileCode, Terminal, BookOpen, Download, Cpu, AlertTriangle } from 'lucide-react';
+import { Play, FileCode, Terminal, BookOpen, Download, Cpu, AlertTriangle, Layers } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'workbench' | 'repl' | 'guide' | 'python-source';
-  setActiveTab: (tab: 'workbench' | 'repl' | 'guide' | 'python-source') => void;
+  activeTab: 'workbench' | 'repl' | 'guide' | 'python-source' | 'ecosystem';
+  setActiveTab: (tab: 'workbench' | 'repl' | 'guide' | 'python-source' | 'ecosystem') => void;
   onRun: () => void;
   onDownloadOutputs: () => void;
+  onDownloadSdk?: () => void;
   hasError: boolean;
   foldedCount: number;
 }
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onRun,
   onDownloadOutputs,
+  onDownloadSdk,
   hasError,
   foldedCount,
 }) => {
@@ -68,7 +70,19 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <BookOpen className="w-3.5 h-3.5" />
-          CLI Guide & Architecture
+          Giới Thiệu & Tài Liệu Ngôn Ngữ
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ecosystem')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            activeTab === 'ecosystem'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          Hệ Sinh Thái & VS Code
         </button>
 
         <button
@@ -96,6 +110,16 @@ export const Header: React.FC<HeaderProps> = ({
             <span>{foldedCount} Constants Folded</span>
           </div>
         ) : null}
+
+        <button
+          onClick={onDownloadSdk}
+          title="Tải về bộ cài đặt BLang Runtime & CLI SDK (chạy file .bl như Python)"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 rounded-lg border border-emerald-500/35 transition-colors whitespace-nowrap cursor-pointer shadow-sm active:scale-95"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Tải BLang SDK</span>
+          <span className="sm:hidden">SDK</span>
+        </button>
 
         <button
           onClick={onRun}

@@ -3,10 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-    <meta name="description" content="An application built with Google AI Studio." />
-    <meta property="og:title" content="My Google AI Studio App" />
-    <meta property="og:description" content="An application built with Google AI Studio." />
+    <script>
+      // Safeguard for window.fetch in iframe environments where fetch might have only a getter
+      (function() {
+        try {
+          var _fetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : undefined;
+          var getter = function() { return _fetch; };
+          var setter = function(fn) { _fetch = fn; };
+          try {
+            Object.defineProperty(window, 'fetch', {
+              get: getter,
+              set: setter,
+              configurable: true,
+              enumerable: true
+            });
+          } catch (_) {}
+          try {
+            if (typeof Window !== 'undefined' && Window.prototype) {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                get: getter,
+                set: setter,
+                configurable: true,
+                enumerable: true
+              });
+            }
+          } catch (_) {}
+        } catch (_) {}
+      })();
+    </script>
+    <title>BLang Programming Language Studio</title>
+    <meta name="description" content="Môi trường phát triển và biên dịch trực quan cho ngôn ngữ lập trình BLang với tài liệu giới thiệu chi tiết, REPL tương tác, và chuyển đổi mã sang Python/JavaScript." />
+    <meta property="og:title" content="BLang Programming Language Studio" />
+    <meta property="og:description" content="Môi trường phát triển và biên dịch trực quan cho ngôn ngữ lập trình BLang với tài liệu giới thiệu chi tiết, REPL tương tác, và chuyển đổi mã sang Python/JavaScript." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
@@ -15,4 +43,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

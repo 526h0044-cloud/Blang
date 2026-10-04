@@ -181,13 +181,16 @@ for (monster in @enemies) {
   {
     id: 'geometry-math',
     name: 'Math & Geometry Engine',
-    description: 'Logarit (log, ln), Căn bậc (sqrt, cbrt, root), Lượng giác (sin, cos, tan, cotan), Chu vi, Diện tích & Thể tích',
+    description: 'Logarit, Căn bậc, Lượng giác độ (sin, cos, tan, cotan), Chu vi (c/C), Diện tích (s/S), Thể tích (v/V), Tròn (circle/cir), Vuông (square/sq)',
     code: `// ==============================================================================
 // BLang Advanced Math & Geometry Engine
 // - Logarit & Logarit tự nhiên: log(x, base), ln(x), log10(x), log2(x)
 // - Căn bậc & Lũy thừa: sqrt(x), cbrt(x), root(x, n), pow(b, e)
-// - Góc & Lượng giác: sind(d), cosd(d), tand(d), cotand(d), sin, cos, tan, cotan
-// - Chu vi, Diện tích, Thể tích: Tròn, Cầu, Trụ, Nón, Vuông, Chữ nhật, Thang, Đa giác
+// - Góc & Lượng giác theo độ: sin(d), cos(d), tan(d), cotan(d)
+// - Chu vi (c/C), Diện tích (s/S), Thể tích (v/V):
+//   + Hình tròn: circle hoặc cir (cir_c, cir_s, circle_c, circle_s, ...)
+//   + Hình vuông: square hoặc sq (sq_c, sq_s, square_c, square_s, ...)
+//   + Cầu (sphere_v, sphere_s), Trụ (cylinder_v), Nón (cone_v), Lập phương (cube_v)
 // ==============================================================================
 
 print("=== 1. LOGARITHM & EXPONENTIAL ===");
@@ -202,32 +205,36 @@ print("root(81, 4)        =", root(81, 4));
 print("pow(2, 10)         =", pow(2, 10));
 
 print("=== 3. GÓC & LƯỢNG GIÁC (SIN, COS, TAN, COTAN) ===");
-print("sin(90 độ)         =", sind(90));
-print("cos(60 độ)         =", cosd(60));
-print("tan(45 độ)         =", tand(45));
-print("cotan(45 độ)       =", cotand(45));
+print("sin(90 độ)         =", sin(90));
+print("cos(60 độ)         =", cos(60));
+print("tan(45 độ)         =", tan(45));
+print("cotan(45 độ)       =", cotan(45));
 
 print("=== 4. HÌNH TRÒN, HÌNH CẦU, HÌNH TRỤ, HÌNH NÓN ===");
 @r = 5;
-print("Chu vi hình tròn (r=5)       =", circle_perimeter(@r));
-print("Diện tích hình tròn (r=5)    =", circle_area(@r));
-print("Thể tích hình cầu (r=3)      =", sphere_volume(3));
-print("Thể tích hình trụ (r=3, h=10)=", cylinder_volume(3, 10));
-print("Thể tích hình nón (r=3, h=10)=", cone_volume(3, 10));
+print("Chu vi hình tròn (cir_c, r=5)       =", cir_c(@r));
+print("Diện tích hình tròn (cir_s, r=5)    =", cir_s(@r));
+print("Thể tích hình cầu (sphere_v, r=3)   =", sphere_v(3));
+print("Thể tích hình trụ (cylinder_v, r=3) =", cylinder_v(3, 10));
+print("Thể tích hình nón (cone_v, r=3)     =", cone_v(3, 10));
 
 print("=== 5. HÌNH VUÔNG, CHỮ NHẬT & THỂ TÍCH KHỐI ===");
-print("Chu vi hình vuông (a=6)      =", square_perimeter(6));
-print("Diện tích hình vuông (a=6)   =", square_area(6));
-print("Thể tích lập phương (a=4)    =", cube_volume(4));
-print("Chu vi chữ nhật (8x5)        =", rect_perimeter(8, 5));
-print("Diện tích chữ nhật (8x5)     =", rect_area(8, 5));
-print("Thể tích hộp chữ nhật (4x5x6)=", cuboid_volume(4, 5, 6));
+print("Chu vi hình vuông (sq_c, a=6)      =", sq_c(6));
+print("Diện tích hình vuông (sq_s, a=6)   =", sq_s(6));
+print("Thể tích lập phương (cube_v, a=4)  =", cube_v(4));
+print("Chu vi chữ nhật (rect_c, 8x5)      =", rect_c(8, 5));
+print("Diện tích chữ nhật (rect_s, 8x5)   =", rect_s(8, 5));
+print("Thể tích hộp chữ nhật (cuboid_v)   =", cuboid_v(4, 5, 6));
 
 print("=== 6. HÌNH THANG & ĐA GIÁC ĐỀU ===");
-print("Diện tích hình thang (a=6, b=10, h=4) =", trapezoid_area(6, 10, 4));
-print("Chu vi hình thang (6, 10, 5, 5)       =", trapezoid_perimeter(6, 10, 5, 5));
-print("Chu vi lục giác đều (n=6, s=4)        =", polygon_perimeter(6, 4));
-print("Diện tích lục giác đều (n=6, s=4)     =", polygon_area(6, 4));
+print("Diện tích hình thang (trapezoid_s)  =", trapezoid_s(6, 10, 4));
+print("Chu vi hình thang (trapezoid_c)     =", trapezoid_c(6, 10, 5, 5));
+print("Chu vi lục giác đều (polygon_c)     =", polygon_c(6, 4));
+print("Diện tích lục giác đều (polygon_s)  =", polygon_s(6, 4));
+
+print("=== 7. HÌNH TAM GIÁC (TRI / TRIANGLE) ===");
+print("Chu vi tam giác (tri_c, 3, 4, 5)    =", tri_c(3, 4, 5));
+print("Diện tích tam giác (tri_s, b=6, h=4)=", tri_s(6, 4));
 `,
   },
 ];

@@ -32,4 +32,8 @@ for (sensor in @sensors) {
     print(">>> Online sensor unit:", sensor);
 }
 
+// 5. Tính năng sinh số ngẫu nhiên: %random(a, b)%
+@lucky_seed = %random(10, 99)%;
+print(">>> Generated Security Token Seed (%random(10, 99)%):", @lucky_seed);
+
 print(">>> Application main.bl executed with 100% integrity.");

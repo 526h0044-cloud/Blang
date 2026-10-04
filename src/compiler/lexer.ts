@@ -254,6 +254,12 @@ export class Lexer {
         continue;
       }
 
+      if (ch === '%' && this.source.slice(this.pos).startsWith('%random')) {
+        for (let i = 0; i < 7; i++) this.advance();
+        tokens.push({ type: 'RANDOM_MACRO', value: '%random', line, col });
+        continue;
+      }
+
       const singleOps: Record<string, TokenType> = {
         '+': '+',
         '-': '-',

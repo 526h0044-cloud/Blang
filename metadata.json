@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "BLang Programming Language Studio",
+  "description": "Môi trường phát triển và biên dịch trực quan cho ngôn ngữ lập trình BLang với tài liệu giới thiệu chi tiết, REPL tương tác, và chuyển đổi mã sang Python/JavaScript.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

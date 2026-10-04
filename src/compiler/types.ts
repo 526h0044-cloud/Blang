@@ -54,7 +54,8 @@ export type TokenType =
   | ','
   | ';'
   | ':'
-  | '.';
+  | '.'
+  | 'RANDOM_MACRO';
 
 export interface Token {
   type: TokenType;
@@ -279,6 +280,8 @@ export interface PipelineResult {
   scopes: ScopeInfo[];
   pythonCode: string;
   javascriptCode: string;
+  bytecodeDisassembly?: string;
+  bytecodeData?: any;
   executionOutput: string[];
   foldedConstants: number;
   error?: CompilerDiagnostic;

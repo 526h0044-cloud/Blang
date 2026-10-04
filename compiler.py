@@ -127,6 +127,7 @@ class TokenType:
     IN          = "in"
 
     # Operators
+    RANDOM_MACRO = "RANDOM_MACRO"
     PLUS        = "+"
     MINUS       = "-"
     STAR        = "*"
@@ -401,6 +402,12 @@ class Lexer:
             if two_ch == "-=":
                 self.advance(); self.advance()
                 tokens.append(Token(TokenType.MINUS_ASSIGN, "-=", line, col))
+                continue
+
+            if ch == "%" and self.source[self.pos:].startswith("%random"):
+                for _ in range(7):
+                    self.advance()
+                tokens.append(Token(TokenType.RANDOM_MACRO, "%random", line, col))
                 continue
 
             # Single-character tokens
@@ -876,6 +883,25 @@ class Parser:
     def parse_primary(self) -> ASTNode:
         tok = self.current_token()
 
+        # Macro: %random(a, b)%
+        if tok.type == TokenType.RANDOM_MACRO:
+            start_l = tok.line
+            start_c = tok.col
+            self.advance()
+            self.expect(TokenType.LPAREN)
+            min_arg = self.parse_expression()
+            self.expect(TokenType.COMMA)
+            max_arg = self.parse_expression()
+            self.expect(TokenType.RPAREN)
+            if self.check(TokenType.PERCENT):
+                self.advance() # consume trailing %
+            return CallNode(
+                line=start_l,
+                col=start_c,
+                callee=IdentifierNode(line=start_l, col=start_c, name="random"),
+                arguments=[min_arg, max_arg]
+            )
+
         # Numbers
         if tok.type == TokenType.NUMBER:
             self.advance()
@@ -1008,20 +1034,55 @@ class SemanticAnalyzer:
             "log", "log10", "log2", "ln",
             # Roots & Powers
             "sqrt", "cbrt", "root", "pow", "power", "abs", "round", "floor", "ceil",
-            # Trigonometric & Angles
+            # Trigonometric & Angles (degrees by default, plus rad conversions)
             "sin", "cos", "tan", "cotan", "cot", "deg_to_rad", "rad_to_deg",
             "sind", "cosd", "tand", "cotand",
-            # Geometry: Circle, Sphere, Cylinder, Cone
+            "sin_rad", "cos_rad", "tan_rad", "cotan_rad",
+            # Geometry: Circle (circle / cir, c / C / perimeter, s / S / area)
+            "circle_c", "circle_C", "cir_c", "cir_C",
+            "circle_s", "circle_S", "cir_s", "cir_S",
             "circle_perimeter", "circle_circumference", "circle_area",
-            "sphere_volume", "cylinder_volume", "cone_volume",
-            # Geometry: Square & Cube
-            "square_perimeter", "square_area", "cube_volume",
-            # Geometry: Rectangle & Cuboid
-            "rect_perimeter", "rect_area", "cuboid_volume",
-            # Geometry: Trapezoid (Thang) & Regular Polygon (Đa giác) & Triangle
-            "trapezoid_area", "trapezoid_perimeter",
-            "polygon_perimeter", "polygon_area",
-            "triangle_area", "triangle_perimeter",
+            "cir_perimeter", "cir_circumference", "cir_area",
+            # Geometry: Sphere (sphere, v / V / volume, s / S / area)
+            "sphere_v", "sphere_V", "sphere_volume",
+            "sphere_s", "sphere_S", "sphere_area",
+            # Geometry: Cylinder (cylinder, v / V / volume)
+            "cylinder_v", "cylinder_V", "cylinder_volume",
+            # Geometry: Cone (cone, v / V / volume)
+            "cone_v", "cone_V", "cone_volume",
+            # Geometry: Square (square / sq, c / C / perimeter, s / S / area)
+            "square_c", "square_C", "sq_c", "sq_C",
+            "square_s", "square_S", "sq_s", "sq_S",
+            "square_perimeter", "square_area",
+            "sq_perimeter", "sq_area",
+            # Geometry: Cube (cube, v / V / volume, s / S / area)
+            "cube_v", "cube_V", "cube_volume",
+            "cube_s", "cube_S", "cube_area",
+            # Geometry: Rectangle (rect / rectangle, c / C / perimeter, s / S / area)
+            "rect_c", "rect_C", "rectangle_c", "rectangle_C",
+            "rect_s", "rect_S", "rectangle_s", "rectangle_S",
+            "rect_perimeter", "rect_area", "rectangle_perimeter", "rectangle_area",
+            # Geometry: Cuboid (cuboid, v / V / volume)
+            "cuboid_v", "cuboid_V", "cuboid_volume",
+            # Geometry: Trapezoid (trapezoid, c / C / perimeter, s / S / area)
+            "trapezoid_c", "trapezoid_C", "trapezoid_perimeter",
+            "trapezoid_s", "trapezoid_S", "trapezoid_area",
+            # Geometry: Regular Polygon (polygon, c / C / perimeter, s / S / area)
+            "polygon_c", "polygon_C", "polygon_perimeter",
+            "polygon_s", "polygon_S", "polygon_area",
+            # Geometry: Triangle (triangle / tri, c / C / perimeter, s / S / area)
+            "triangle_c", "triangle_C", "triangle_perimeter",
+            "triangle_s", "triangle_S", "triangle_area",
+            "tri_c", "tri_C", "tri_perimeter",
+            "tri_s", "tri_S", "tri_area",
+            # Standard Library: String Operations
+            "upper", "lower", "trim", "replace", "split", "join", "contains",
+            # Standard Library: List & Aggregation
+            "sum", "min_val", "max_val", "avg", "reverse",
+            # Standard Library: System & Time
+            "time_now",
+            # Random Number Generator
+            "random",
         ]
         for b in builtins:
             self.global_scope.define(Symbol(name=b, symbol_type="function", line=0, col=0))
@@ -1507,6 +1568,8 @@ class PythonCodeGenerator:
             "# ==============================================================================",
             "import sys",
             "import math",
+            "import time",
+            "import random as _py_random",
             "",
             "# Runtime helper: Strict Type Safety Enforcer",
             "def _bl_strict_add(a, b):",
@@ -1517,17 +1580,22 @@ class PythonCodeGenerator:
             "# Runtime helper: Math & Geometry Standard Functions",
             "PI = math.pi",
             "E = math.e",
-            "sin = math.sin",
-            "cos = math.cos",
-            "tan = math.tan",
-            "cotan = lambda x: 1.0 / math.tan(x)",
+            "# Trigonometry (Degrees by default)",
+            "sin = lambda d: math.sin(d * (math.pi / 180.0))",
+            "cos = lambda d: math.cos(d * (math.pi / 180.0))",
+            "tan = lambda d: math.tan(d * (math.pi / 180.0))",
+            "cotan = lambda d: 1.0 / math.tan(d * (math.pi / 180.0))",
             "cot = cotan",
+            "sind = sin",
+            "cosd = cos",
+            "tand = tan",
+            "cotand = cotan",
+            "sin_rad = math.sin",
+            "cos_rad = math.cos",
+            "tan_rad = math.tan",
+            "cotan_rad = lambda r: 1.0 / math.tan(r)",
             "deg_to_rad = lambda d: d * (math.pi / 180.0)",
             "rad_to_deg = lambda r: r * (180.0 / math.pi)",
-            "sind = lambda d: math.sin(d * (math.pi / 180.0))",
-            "cosd = lambda d: math.cos(d * (math.pi / 180.0))",
-            "tand = lambda d: math.tan(d * (math.pi / 180.0))",
-            "cotand = lambda d: 1.0 / math.tan(d * (math.pi / 180.0))",
             "log = lambda x, base=10: math.log(x, base)",
             "ln = math.log",
             "log10 = math.log10",
@@ -1537,24 +1605,116 @@ class PythonCodeGenerator:
             "root = lambda x, n: x ** (1.0 / n)",
             "pow = math.pow",
             "power = pow",
-            "circle_perimeter = lambda r: 2.0 * math.pi * r",
-            "circle_circumference = circle_perimeter",
-            "circle_area = lambda r: math.pi * (r ** 2)",
-            "sphere_volume = lambda r: (4.0 / 3.0) * math.pi * (r ** 3)",
-            "cylinder_volume = lambda r, h: math.pi * (r ** 2) * h",
-            "cone_volume = lambda r, h: (1.0 / 3.0) * math.pi * (r ** 2) * h",
-            "square_perimeter = lambda a: 4.0 * a",
-            "square_area = lambda a: float(a * a)",
-            "cube_volume = lambda a: float(a ** 3)",
-            "rect_perimeter = lambda w, h: 2.0 * (w + h)",
-            "rect_area = lambda w, h: float(w * h)",
-            "cuboid_volume = lambda w, h, d: float(w * h * d)",
-            "trapezoid_area = lambda a, b, h: ((a + b) * h) / 2.0",
-            "trapezoid_perimeter = lambda a, b, c, d: float(a + b + c + d)",
-            "polygon_perimeter = lambda n, s: float(n * s)",
-            "polygon_area = lambda n, s: (n * (s ** 2)) / (4.0 * math.tan(math.pi / n))",
-            "triangle_area = lambda b, h: 0.5 * b * h",
-            "triangle_perimeter = lambda a, b, c: float(a + b + c)",
+            "# Geometry: Circle (circle / cir, c / C / perimeter, s / S / area)",
+            "circle_c = lambda r: 2.0 * math.pi * r",
+            "circle_C = circle_c",
+            "cir_c = circle_c",
+            "cir_C = circle_c",
+            "circle_perimeter = circle_c",
+            "cir_perimeter = circle_c",
+            "circle_circumference = circle_c",
+            "cir_circumference = circle_c",
+            "circle_s = lambda r: math.pi * (r ** 2)",
+            "circle_S = circle_s",
+            "cir_s = circle_s",
+            "cir_S = circle_s",
+            "circle_area = circle_s",
+            "cir_area = circle_s",
+            "# Geometry: Sphere",
+            "sphere_v = lambda r: (4.0 / 3.0) * math.pi * (r ** 3)",
+            "sphere_V = sphere_v",
+            "sphere_volume = sphere_v",
+            "sphere_s = lambda r: 4.0 * math.pi * (r ** 2)",
+            "sphere_S = sphere_s",
+            "sphere_area = sphere_s",
+            "# Geometry: Cylinder",
+            "cylinder_v = lambda r, h: math.pi * (r ** 2) * h",
+            "cylinder_V = cylinder_v",
+            "cylinder_volume = cylinder_v",
+            "# Geometry: Cone",
+            "cone_v = lambda r, h: (1.0 / 3.0) * math.pi * (r ** 2) * h",
+            "cone_V = cone_v",
+            "cone_volume = cone_v",
+            "# Geometry: Square (square / sq, c / C / perimeter, s / S / area)",
+            "square_c = lambda a: 4.0 * a",
+            "square_C = square_c",
+            "sq_c = square_c",
+            "sq_C = square_c",
+            "square_perimeter = square_c",
+            "sq_perimeter = square_c",
+            "square_s = lambda a: float(a * a)",
+            "square_S = square_s",
+            "sq_s = square_s",
+            "sq_S = square_s",
+            "square_area = square_s",
+            "sq_area = square_s",
+            "# Geometry: Cube",
+            "cube_v = lambda a: float(a ** 3)",
+            "cube_V = cube_v",
+            "cube_volume = cube_v",
+            "cube_s = lambda a: 6.0 * (a ** 2)",
+            "cube_S = cube_s",
+            "cube_area = cube_s",
+            "# Geometry: Rectangle (rect / rectangle, c / C / perimeter, s / S / area)",
+            "rect_c = lambda w, h: 2.0 * (w + h)",
+            "rect_C = rect_c",
+            "rectangle_c = rect_c",
+            "rectangle_C = rect_c",
+            "rect_perimeter = rect_c",
+            "rectangle_perimeter = rect_c",
+            "rect_s = lambda w, h: float(w * h)",
+            "rect_S = rect_s",
+            "rectangle_s = rect_s",
+            "rectangle_S = rect_s",
+            "rect_area = rect_s",
+            "rectangle_area = rect_s",
+            "# Geometry: Cuboid",
+            "cuboid_v = lambda w, h, d: float(w * h * d)",
+            "cuboid_V = cuboid_v",
+            "cuboid_volume = cuboid_v",
+            "# Geometry: Trapezoid",
+            "trapezoid_s = lambda a, b, h: ((a + b) * h) / 2.0",
+            "trapezoid_S = trapezoid_s",
+            "trapezoid_area = trapezoid_s",
+            "trapezoid_c = lambda a, b, c, d: float(a + b + c + d)",
+            "trapezoid_C = trapezoid_c",
+            "trapezoid_perimeter = trapezoid_c",
+            "# Geometry: Regular Polygon",
+            "polygon_c = lambda n, s: float(n * s)",
+            "polygon_C = polygon_c",
+            "polygon_perimeter = polygon_c",
+            "polygon_s = lambda n, s: (n * (s ** 2)) / (4.0 * math.tan(math.pi / n))",
+            "polygon_S = polygon_s",
+            "polygon_area = polygon_s",
+            "# Geometry: Triangle (triangle / tri, c / C / perimeter, s / S / area)",
+            "triangle_s = lambda b, h: 0.5 * b * h",
+            "triangle_S = triangle_s",
+            "triangle_area = triangle_s",
+            "tri_s = triangle_s",
+            "tri_S = triangle_s",
+            "tri_area = triangle_s",
+            "triangle_c = lambda a, b, c: float(a + b + c)",
+            "triangle_C = triangle_c",
+            "triangle_perimeter = triangle_c",
+            "tri_c = triangle_c",
+            "tri_C = triangle_c",
+            "tri_perimeter = triangle_c",
+            "# Standard Library: String Operations",
+            "upper = lambda s: str(s).upper()",
+            "lower = lambda s: str(s).lower()",
+            "trim = lambda s: str(s).strip()",
+            "replace = lambda s, o, n: str(s).replace(str(o), str(n))",
+            "split = lambda s, d: str(s).split(str(d))",
+            "join = lambda a, d='': d.join(str(x) for x in a) if isinstance(a, list) else str(a)",
+            "contains = lambda s, sub: str(sub) in str(s)",
+            "# Standard Library: List & Aggregation",
+            "sum = lambda a: float(sum(float(x) for x in a)) if isinstance(a, list) and a else 0.0",
+            "min_val = lambda a: float(min(float(x) for x in a)) if isinstance(a, list) and a else 0.0",
+            "max_val = lambda a: float(max(float(x) for x in a)) if isinstance(a, list) and a else 0.0",
+            "avg = lambda a: float(sum(float(x) for x in a)) / len(a) if isinstance(a, list) and a else 0.0",
+            "reverse = lambda a: list(reversed(a)) if isinstance(a, list) else (str(a)[::-1] if isinstance(a, str) else a)",
+            "time_now = lambda: float(time.time() * 1000.0)",
+            "random = lambda a, b: float(_py_random.randint(int(min(a, b)), int(max(a, b)))) if (float(a).is_integer() and float(b).is_integer()) else float(_py_random.uniform(min(a, b), max(a, b)))",
             "",
             "# --- Transpiled Program Statements ---",
         ]
@@ -1754,17 +1914,22 @@ class JavaScriptCodeGenerator:
             "// Runtime helper: Math & Geometry Standard Functions",
             "const PI = Math.PI;",
             "const E = Math.E;",
-            "const sin = (x) => Math.sin(x);",
-            "const cos = (x) => Math.cos(x);",
-            "const tan = (x) => Math.tan(x);",
-            "const cotan = (x) => 1 / Math.tan(x);",
+            "// Trigonometry (Degrees by default)",
+            "const sin = (d) => Math.sin(d * (Math.PI / 180));",
+            "const cos = (d) => Math.cos(d * (Math.PI / 180));",
+            "const tan = (d) => Math.tan(d * (Math.PI / 180));",
+            "const cotan = (d) => 1 / Math.tan(d * (Math.PI / 180));",
             "const cot = cotan;",
+            "const sind = sin;",
+            "const cosd = cos;",
+            "const tand = tan;",
+            "const cotand = cotan;",
+            "const sin_rad = (r) => Math.sin(r);",
+            "const cos_rad = (r) => Math.cos(r);",
+            "const tan_rad = (r) => Math.tan(r);",
+            "const cotan_rad = (r) => 1 / Math.tan(r);",
             "const deg_to_rad = (d) => d * (Math.PI / 180);",
             "const rad_to_deg = (r) => r * (180 / Math.PI);",
-            "const sind = (d) => Math.sin(d * (Math.PI / 180));",
-            "const cosd = (d) => Math.cos(d * (Math.PI / 180));",
-            "const tand = (d) => Math.tan(d * (Math.PI / 180));",
-            "const cotand = (d) => 1 / Math.tan(d * (Math.PI / 180));",
             "const log = (x, base) => (base !== undefined ? Math.log(x) / Math.log(base) : Math.log10(x));",
             "const ln = (x) => Math.log(x);",
             "const log10 = (x) => Math.log10(x);",
@@ -1774,24 +1939,116 @@ class JavaScriptCodeGenerator:
             "const root = (x, n) => Math.pow(x, 1 / n);",
             "const pow = (b, e) => Math.pow(b, e);",
             "const power = pow;",
-            "const circle_perimeter = (r) => 2 * Math.PI * r;",
-            "const circle_circumference = circle_perimeter;",
-            "const circle_area = (r) => Math.PI * r * r;",
-            "const sphere_volume = (r) => (4 / 3) * Math.PI * Math.pow(r, 3);",
-            "const cylinder_volume = (r, h) => Math.PI * r * r * h;",
-            "const cone_volume = (r, h) => (1 / 3) * Math.PI * r * r * h;",
-            "const square_perimeter = (a) => 4 * a;",
-            "const square_area = (a) => a * a;",
-            "const cube_volume = (a) => Math.pow(a, 3);",
-            "const rect_perimeter = (w, h) => 2 * (w + h);",
-            "const rect_area = (w, h) => w * h;",
-            "const cuboid_volume = (w, h, d) => w * h * d;",
-            "const trapezoid_area = (a, b, h) => ((a + b) * h) / 2;",
-            "const trapezoid_perimeter = (a, b, c, d) => a + b + c + d;",
-            "const polygon_perimeter = (n, s) => n * s;",
-            "const polygon_area = (n, s) => (n * s * s) / (4 * Math.tan(Math.PI / n));",
-            "const triangle_area = (b, h) => 0.5 * b * h;",
-            "const triangle_perimeter = (a, b, c) => a + b + c;",
+            "// Geometry: Circle (circle / cir, c / C / perimeter, s / S / area)",
+            "const circle_c = (r) => 2 * Math.PI * r;",
+            "const circle_C = circle_c;",
+            "const cir_c = circle_c;",
+            "const cir_C = circle_c;",
+            "const circle_perimeter = circle_c;",
+            "const cir_perimeter = circle_c;",
+            "const circle_circumference = circle_c;",
+            "const cir_circumference = circle_c;",
+            "const circle_s = (r) => Math.PI * r * r;",
+            "const circle_S = circle_s;",
+            "const cir_s = circle_s;",
+            "const cir_S = circle_s;",
+            "const circle_area = circle_s;",
+            "const cir_area = circle_s;",
+            "// Geometry: Sphere",
+            "const sphere_v = (r) => (4 / 3) * Math.PI * Math.pow(r, 3);",
+            "const sphere_V = sphere_v;",
+            "const sphere_volume = sphere_v;",
+            "const sphere_s = (r) => 4 * Math.PI * Math.pow(r, 2);",
+            "const sphere_S = sphere_s;",
+            "const sphere_area = sphere_s;",
+            "// Geometry: Cylinder",
+            "const cylinder_v = (r, h) => Math.PI * r * r * h;",
+            "const cylinder_V = cylinder_v;",
+            "const cylinder_volume = cylinder_v;",
+            "// Geometry: Cone",
+            "const cone_v = (r, h) => (1 / 3) * Math.PI * r * r * h;",
+            "const cone_V = cone_v;",
+            "const cone_volume = cone_v;",
+            "// Geometry: Square (square / sq, c / C / perimeter, s / S / area)",
+            "const square_c = (a) => 4 * a;",
+            "const square_C = square_c;",
+            "const sq_c = square_c;",
+            "const sq_C = square_c;",
+            "const square_perimeter = square_c;",
+            "const sq_perimeter = square_c;",
+            "const square_s = (a) => a * a;",
+            "const square_S = square_s;",
+            "const sq_s = square_s;",
+            "const sq_S = square_s;",
+            "const square_area = square_s;",
+            "const sq_area = square_s;",
+            "// Geometry: Cube",
+            "const cube_v = (a) => Math.pow(a, 3);",
+            "const cube_V = cube_v;",
+            "const cube_volume = cube_v;",
+            "const cube_s = (a) => 6 * a * a;",
+            "const cube_S = cube_s;",
+            "const cube_area = cube_s;",
+            "// Geometry: Rectangle (rect / rectangle, c / C / perimeter, s / S / area)",
+            "const rect_c = (w, h) => 2 * (w + h);",
+            "const rect_C = rect_c;",
+            "const rectangle_c = rect_c;",
+            "const rectangle_C = rect_c;",
+            "const rect_perimeter = rect_c;",
+            "const rectangle_perimeter = rect_c;",
+            "const rect_s = (w, h) => w * h;",
+            "const rect_S = rect_s;",
+            "const rectangle_s = rect_s;",
+            "const rectangle_S = rect_s;",
+            "const rect_area = rect_s;",
+            "const rectangle_area = rect_s;",
+            "// Geometry: Cuboid",
+            "const cuboid_v = (w, h, d) => w * h * d;",
+            "const cuboid_V = cuboid_v;",
+            "const cuboid_volume = cuboid_v;",
+            "// Geometry: Trapezoid",
+            "const trapezoid_s = (a, b, h) => ((a + b) * h) / 2;",
+            "const trapezoid_S = trapezoid_s;",
+            "const trapezoid_area = trapezoid_s;",
+            "const trapezoid_c = (a, b, c, d) => a + b + c + d;",
+            "const trapezoid_C = trapezoid_c;",
+            "const trapezoid_perimeter = trapezoid_c;",
+            "// Geometry: Regular Polygon",
+            "const polygon_c = (n, s) => n * s;",
+            "const polygon_C = polygon_c;",
+            "const polygon_perimeter = polygon_c;",
+            "const polygon_s = (n, s) => (n * s * s) / (4 * Math.tan(Math.PI / n));",
+            "const polygon_S = polygon_s;",
+            "const polygon_area = polygon_s;",
+            "// Geometry: Triangle (triangle / tri, c / C / perimeter, s / S / area)",
+            "const triangle_s = (b, h) => 0.5 * b * h;",
+            "const triangle_S = triangle_s;",
+            "const triangle_area = triangle_s;",
+            "const tri_s = triangle_s;",
+            "const tri_S = triangle_s;",
+            "const tri_area = triangle_s;",
+            "const triangle_c = (a, b, c) => a + b + c;",
+            "const triangle_C = triangle_c;",
+            "const triangle_perimeter = triangle_c;",
+            "const tri_c = triangle_c;",
+            "const tri_C = triangle_c;",
+            "const tri_perimeter = triangle_c;",
+            "// Standard Library: String Operations",
+            "const upper = (s) => String(s).toUpperCase();",
+            "const lower = (s) => String(s).toLowerCase();",
+            "const trim = (s) => String(s).trim();",
+            "const replace = (s, o, n) => String(s).split(String(o)).join(String(n));",
+            "const split = (s, d) => String(s).split(String(d));",
+            "const join = (a, d) => Array.isArray(a) ? a.join(d ?? '') : String(a);",
+            "const contains = (s, sub) => String(s).includes(String(sub));",
+            "// Standard Library: List & Aggregation",
+            "const sum = (a) => Array.isArray(a) ? a.reduce((acc, c) => acc + Number(c), 0) : 0;",
+            "const min_val = (a) => Array.isArray(a) && a.length > 0 ? Math.min(...a.map(Number)) : 0;",
+            "const max_val = (a) => Array.isArray(a) && a.length > 0 ? Math.max(...a.map(Number)) : 0;",
+            "const avg = (a) => Array.isArray(a) && a.length > 0 ? a.reduce((acc, c) => acc + Number(c), 0) / a.length : 0;",
+            "const reverse = (a) => Array.isArray(a) ? [...a].reverse() : (typeof a === 'string' ? a.split('').reverse().join('') : a);",
+            "const time_now = () => Date.now();",
+            "const random = (a, b) => { const lo = Math.min(Number(a), Number(b)); const hi = Math.max(Number(a), Number(b)); return Number.isInteger(Number(a)) && Number.isInteger(Number(b)) ? Math.floor(Math.random() * (hi - lo + 1)) + lo : Math.random() * (hi - lo) + lo; };",
             "",
             "// --- Transpiled Program Statements ---",
         ]
@@ -2086,20 +2343,33 @@ class Interpreter:
         self.global_env.define("PI", math.pi)
         self.global_env.define("E", math.e)
 
-        # Trigonometric functions
-        self.global_env.define("sin", lambda args: math.sin(args[0]))
-        self.global_env.define("cos", lambda args: math.cos(args[0]))
-        self.global_env.define("tan", lambda args: math.tan(args[0]))
-        self.global_env.define("cotan", lambda args: 1.0 / math.tan(args[0]))
-        self.global_env.define("cot", lambda args: 1.0 / math.tan(args[0]))
+        # Trigonometric functions (Degrees by default as requested: sin(90) = 1, cos(60) = 0.5)
+        sin_deg = lambda args: math.sin(args[0] * (math.pi / 180.0))
+        cos_deg = lambda args: math.cos(args[0] * (math.pi / 180.0))
+        tan_deg = lambda args: math.tan(args[0] * (math.pi / 180.0))
+        cotan_deg = lambda args: 1.0 / math.tan(args[0] * (math.pi / 180.0))
 
-        # Degree <-> Radian conversions & Degree trig functions
+        self.global_env.define("sin", sin_deg)
+        self.global_env.define("cos", cos_deg)
+        self.global_env.define("tan", tan_deg)
+        self.global_env.define("cotan", cotan_deg)
+        self.global_env.define("cot", cotan_deg)
+
+        # Backward compatibility & explicit aliases
+        self.global_env.define("sind", sin_deg)
+        self.global_env.define("cosd", cos_deg)
+        self.global_env.define("tand", tan_deg)
+        self.global_env.define("cotand", cotan_deg)
+
+        # Radian trigonometric functions
+        self.global_env.define("sin_rad", lambda args: math.sin(args[0]))
+        self.global_env.define("cos_rad", lambda args: math.cos(args[0]))
+        self.global_env.define("tan_rad", lambda args: math.tan(args[0]))
+        self.global_env.define("cotan_rad", lambda args: 1.0 / math.tan(args[0]))
+
+        # Degree <-> Radian conversions
         self.global_env.define("deg_to_rad", lambda args: args[0] * (math.pi / 180.0))
         self.global_env.define("rad_to_deg", lambda args: args[0] * (180.0 / math.pi))
-        self.global_env.define("sind", lambda args: math.sin(args[0] * (math.pi / 180.0)))
-        self.global_env.define("cosd", lambda args: math.cos(args[0] * (math.pi / 180.0)))
-        self.global_env.define("tand", lambda args: math.tan(args[0] * (math.pi / 180.0)))
-        self.global_env.define("cotand", lambda args: 1.0 / math.tan(args[0] * (math.pi / 180.0)))
 
         # Logarithmic & Exponential
         self.global_env.define("log", lambda args: math.log(args[0], args[1]) if len(args) > 1 else math.log10(args[0]))
@@ -2118,31 +2388,164 @@ class Interpreter:
         self.global_env.define("floor", lambda args: math.floor(args[0]))
         self.global_env.define("ceil", lambda args: math.ceil(args[0]))
 
-        # Geometry: Hình tròn, Cầu, Trụ, Nón (Circle, Sphere, Cylinder, Cone)
-        self.global_env.define("circle_perimeter", lambda args: 2.0 * math.pi * args[0])
-        self.global_env.define("circle_circumference", lambda args: 2.0 * math.pi * args[0])
-        self.global_env.define("circle_area", lambda args: math.pi * (args[0] ** 2))
-        self.global_env.define("sphere_volume", lambda args: (4.0 / 3.0) * math.pi * (args[0] ** 3))
-        self.global_env.define("cylinder_volume", lambda args: math.pi * (args[0] ** 2) * args[1])
-        self.global_env.define("cone_volume", lambda args: (1.0 / 3.0) * math.pi * (args[0] ** 2) * args[1])
+        # Geometry: Hình tròn (circle hoặc cir, chu vi: c/C, diện tích: s/S)
+        circle_c_fn = lambda args: 2.0 * math.pi * args[0]
+        circle_s_fn = lambda args: math.pi * (args[0] ** 2)
+        self.global_env.define("circle_c", circle_c_fn)
+        self.global_env.define("circle_C", circle_c_fn)
+        self.global_env.define("cir_c", circle_c_fn)
+        self.global_env.define("cir_C", circle_c_fn)
+        self.global_env.define("circle_perimeter", circle_c_fn)
+        self.global_env.define("cir_perimeter", circle_c_fn)
+        self.global_env.define("circle_circumference", circle_c_fn)
+        self.global_env.define("cir_circumference", circle_c_fn)
 
-        # Geometry: Hình vuông & Lập phương (Square & Cube)
-        self.global_env.define("square_perimeter", lambda args: 4.0 * args[0])
-        self.global_env.define("square_area", lambda args: float(args[0] * args[0]))
-        self.global_env.define("cube_volume", lambda args: float(args[0] ** 3))
+        self.global_env.define("circle_s", circle_s_fn)
+        self.global_env.define("circle_S", circle_s_fn)
+        self.global_env.define("cir_s", circle_s_fn)
+        self.global_env.define("cir_S", circle_s_fn)
+        self.global_env.define("circle_area", circle_s_fn)
+        self.global_env.define("cir_area", circle_s_fn)
 
-        # Geometry: Hình chữ nhật & Hình hộp (Rectangle & Cuboid)
-        self.global_env.define("rect_perimeter", lambda args: 2.0 * (args[0] + args[1]))
-        self.global_env.define("rect_area", lambda args: float(args[0] * args[1]))
-        self.global_env.define("cuboid_volume", lambda args: float(args[0] * args[1] * args[2]))
+        # Geometry: Hình cầu (sphere, thể tích: v/V, diện tích: s/S)
+        sphere_v_fn = lambda args: (4.0 / 3.0) * math.pi * (args[0] ** 3)
+        sphere_s_fn = lambda args: 4.0 * math.pi * (args[0] ** 2)
+        self.global_env.define("sphere_v", sphere_v_fn)
+        self.global_env.define("sphere_V", sphere_v_fn)
+        self.global_env.define("sphere_volume", sphere_v_fn)
+        self.global_env.define("sphere_s", sphere_s_fn)
+        self.global_env.define("sphere_S", sphere_s_fn)
+        self.global_env.define("sphere_area", sphere_s_fn)
 
-        # Geometry: Hình thang (Trapezoid) & Đa giác đều (Regular Polygon) & Tam giác (Triangle)
-        self.global_env.define("trapezoid_area", lambda args: ((args[0] + args[1]) * args[2]) / 2.0)
-        self.global_env.define("trapezoid_perimeter", lambda args: float(args[0] + args[1] + args[2] + args[3]))
-        self.global_env.define("polygon_perimeter", lambda args: float(args[0] * args[1]))
-        self.global_env.define("polygon_area", lambda args: (args[0] * (args[1] ** 2)) / (4.0 * math.tan(math.pi / args[0])))
-        self.global_env.define("triangle_area", lambda args: 0.5 * args[0] * args[1])
-        self.global_env.define("triangle_perimeter", lambda args: float(args[0] + args[1] + args[2]))
+        # Geometry: Hình trụ (cylinder, thể tích: v/V)
+        cylinder_v_fn = lambda args: math.pi * (args[0] ** 2) * args[1]
+        self.global_env.define("cylinder_v", cylinder_v_fn)
+        self.global_env.define("cylinder_V", cylinder_v_fn)
+        self.global_env.define("cylinder_volume", cylinder_v_fn)
+
+        # Geometry: Hình nón (cone, thể tích: v/V)
+        cone_v_fn = lambda args: (1.0 / 3.0) * math.pi * (args[0] ** 2) * args[1]
+        self.global_env.define("cone_v", cone_v_fn)
+        self.global_env.define("cone_V", cone_v_fn)
+        self.global_env.define("cone_volume", cone_v_fn)
+
+        # Geometry: Hình vuông (square hoặc sq, chu vi: c/C, diện tích: s/S)
+        square_c_fn = lambda args: 4.0 * args[0]
+        square_s_fn = lambda args: float(args[0] * args[0])
+        self.global_env.define("square_c", square_c_fn)
+        self.global_env.define("square_C", square_c_fn)
+        self.global_env.define("sq_c", square_c_fn)
+        self.global_env.define("sq_C", square_c_fn)
+        self.global_env.define("square_perimeter", square_c_fn)
+        self.global_env.define("sq_perimeter", square_c_fn)
+
+        self.global_env.define("square_s", square_s_fn)
+        self.global_env.define("square_S", square_s_fn)
+        self.global_env.define("sq_s", square_s_fn)
+        self.global_env.define("sq_S", square_s_fn)
+        self.global_env.define("square_area", square_s_fn)
+        self.global_env.define("sq_area", square_s_fn)
+
+        # Geometry: Hình lập phương (cube, thể tích: v/V, diện tích: s/S)
+        cube_v_fn = lambda args: float(args[0] ** 3)
+        cube_s_fn = lambda args: 6.0 * (args[0] ** 2)
+        self.global_env.define("cube_v", cube_v_fn)
+        self.global_env.define("cube_V", cube_v_fn)
+        self.global_env.define("cube_volume", cube_v_fn)
+        self.global_env.define("cube_s", cube_s_fn)
+        self.global_env.define("cube_S", cube_s_fn)
+        self.global_env.define("cube_area", cube_s_fn)
+
+        # Geometry: Hình chữ nhật (rect hoặc rectangle, chu vi: c/C, diện tích: s/S)
+        rect_c_fn = lambda args: 2.0 * (args[0] + args[1])
+        rect_s_fn = lambda args: float(args[0] * args[1])
+        self.global_env.define("rect_c", rect_c_fn)
+        self.global_env.define("rect_C", rect_c_fn)
+        self.global_env.define("rectangle_c", rect_c_fn)
+        self.global_env.define("rectangle_C", rect_c_fn)
+        self.global_env.define("rect_perimeter", rect_c_fn)
+        self.global_env.define("rectangle_perimeter", rect_c_fn)
+
+        self.global_env.define("rect_s", rect_s_fn)
+        self.global_env.define("rect_S", rect_s_fn)
+        self.global_env.define("rectangle_s", rect_s_fn)
+        self.global_env.define("rectangle_S", rect_s_fn)
+        self.global_env.define("rect_area", rect_s_fn)
+        self.global_env.define("rectangle_area", rect_s_fn)
+
+        # Geometry: Hình hộp chữ nhật (cuboid, thể tích: v/V)
+        cuboid_v_fn = lambda args: float(args[0] * args[1] * args[2])
+        self.global_env.define("cuboid_v", cuboid_v_fn)
+        self.global_env.define("cuboid_V", cuboid_v_fn)
+        self.global_env.define("cuboid_volume", cuboid_v_fn)
+
+        # Geometry: Hình thang (trapezoid, diện tích: s/S, chu vi: c/C)
+        trapezoid_s_fn = lambda args: ((args[0] + args[1]) * args[2]) / 2.0
+        trapezoid_c_fn = lambda args: float(args[0] + args[1] + args[2] + args[3])
+        self.global_env.define("trapezoid_s", trapezoid_s_fn)
+        self.global_env.define("trapezoid_S", trapezoid_s_fn)
+        self.global_env.define("trapezoid_area", trapezoid_s_fn)
+        self.global_env.define("trapezoid_c", trapezoid_c_fn)
+        self.global_env.define("trapezoid_C", trapezoid_c_fn)
+        self.global_env.define("trapezoid_perimeter", trapezoid_c_fn)
+
+        # Geometry: Đa giác đều (regular polygon, chu vi: c/C, diện tích: s/S)
+        polygon_c_fn = lambda args: float(args[0] * args[1])
+        polygon_s_fn = lambda args: (args[0] * (args[1] ** 2)) / (4.0 * math.tan(math.pi / args[0]))
+        self.global_env.define("polygon_c", polygon_c_fn)
+        self.global_env.define("polygon_C", polygon_c_fn)
+        self.global_env.define("polygon_perimeter", polygon_c_fn)
+        self.global_env.define("polygon_s", polygon_s_fn)
+        self.global_env.define("polygon_S", polygon_s_fn)
+        self.global_env.define("polygon_area", polygon_s_fn)
+
+        # Geometry: Tam giác (triangle / tri, diện tích: s/S, chu vi: c/C)
+        triangle_s_fn = lambda args: 0.5 * args[0] * args[1]
+        triangle_c_fn = lambda args: float(args[0] + args[1] + args[2])
+        self.global_env.define("triangle_s", triangle_s_fn)
+        self.global_env.define("triangle_S", triangle_s_fn)
+        self.global_env.define("triangle_area", triangle_s_fn)
+        self.global_env.define("tri_s", triangle_s_fn)
+        self.global_env.define("tri_S", triangle_s_fn)
+        self.global_env.define("tri_area", triangle_s_fn)
+
+        self.global_env.define("triangle_c", triangle_c_fn)
+        self.global_env.define("triangle_C", triangle_c_fn)
+        self.global_env.define("triangle_perimeter", triangle_c_fn)
+        self.global_env.define("tri_c", triangle_c_fn)
+        self.global_env.define("tri_C", triangle_c_fn)
+        self.global_env.define("tri_perimeter", triangle_c_fn)
+
+        # Standard Library: String Operations
+        self.global_env.define("upper", lambda args: str(args[0]).upper())
+        self.global_env.define("lower", lambda args: str(args[0]).lower())
+        self.global_env.define("trim", lambda args: str(args[0]).strip())
+        self.global_env.define("replace", lambda args: str(args[0]).replace(str(args[1]), str(args[2])))
+        self.global_env.define("split", lambda args: str(args[0]).split(str(args[1])))
+        self.global_env.define("join", lambda args: (str(args[1]) if len(args) > 1 else "").join(str(x) for x in args[0]) if isinstance(args[0], list) else str(args[0]))
+        self.global_env.define("contains", lambda args: str(args[1]) in str(args[0]))
+
+        # Standard Library: List & Aggregation
+        self.global_env.define("sum", lambda args: float(sum(float(x) for x in args[0])) if isinstance(args[0], list) and args[0] else 0.0)
+        self.global_env.define("min_val", lambda args: float(min(float(x) for x in args[0])) if isinstance(args[0], list) and args[0] else 0.0)
+        self.global_env.define("max_val", lambda args: float(max(float(x) for x in args[0])) if isinstance(args[0], list) and args[0] else 0.0)
+        self.global_env.define("avg", lambda args: float(sum(float(x) for x in args[0])) / len(args[0]) if isinstance(args[0], list) and args[0] else 0.0)
+        self.global_env.define("reverse", lambda args: list(reversed(args[0])) if isinstance(args[0], list) else (str(args[0])[::-1] if isinstance(args[0], str) else args[0]))
+
+        # Standard Library: System & Time
+        import time as _t
+        self.global_env.define("time_now", lambda args: float(_t.time() * 1000.0))
+
+        # Random Number Generator: %random(a, b)% or random(a, b)
+        def _bl_random_fn(args):
+            import random as _r
+            a = float(args[0]) if len(args) > 0 else 0.0
+            b = float(args[1]) if len(args) > 1 else 100.0
+            lo, hi = min(a, b), max(a, b)
+            if a.is_integer() and b.is_integer():
+                return float(_r.randint(int(lo), int(hi)))
+            return float(_r.uniform(lo, hi))
+        self.global_env.define("random", _bl_random_fn)
 
     def execute(self, ast: ProgramNode) -> Any:
         result = None

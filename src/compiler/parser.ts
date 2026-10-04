@@ -428,6 +428,27 @@ export class Parser {
   private parsePrimary(): ASTNode {
     const tok = this.currentToken();
 
+    if (tok.type === 'RANDOM_MACRO' || (tok.type === 'IDENTIFIER' && tok.value === '%random')) {
+      const startL = tok.line;
+      const startC = tok.col;
+      this.advance(); // consume %random
+      this.expect('(');
+      const minArg = this.parseExpression();
+      this.expect(',');
+      const maxArg = this.parseExpression();
+      this.expect(')');
+      if (this.check('%')) {
+        this.advance(); // consume trailing % in %random(a,b)%
+      }
+      return {
+        type: 'Call',
+        callee: { type: 'Identifier', name: 'random', line: startL, col: startC },
+        arguments: [minArg, maxArg],
+        line: startL,
+        col: startC,
+      };
+    }
+
     if (tok.type === 'NUMBER') {
       this.advance();
       return { type: 'Literal', value: tok.value, litType: 'number', line: tok.line, col: tok.col };
