@@ -5,8 +5,10 @@ import { ASTOptimizer } from './optimizer';
 import { PythonCodeGenerator } from './codegen-py';
 import { JavaScriptCodeGenerator } from './codegen-js';
 import { Interpreter } from './interpreter';
-import { BytecodeCompiler } from './bytecode';
-import { PipelineResult, Token } from './types';
+import { BytecodeCompiler, VirtualMachine } from './bytecode';
+import { lintBLang } from './linter';
+import { BLangLSPService } from './lsp';
+import { PipelineResult, Token, CompileOptions, CompilerMetrics } from './types';
 
 export * from './types';
 export { Lexer } from './lexer';
@@ -16,9 +18,14 @@ export { ASTOptimizer } from './optimizer';
 export { PythonCodeGenerator } from './codegen-py';
 export { JavaScriptCodeGenerator } from './codegen-js';
 export { Interpreter } from './interpreter';
-export { BytecodeCompiler } from './bytecode';
+export { BytecodeCompiler, VirtualMachine } from './bytecode';
 export { formatBLang } from './formatter';
+export { lintBLang } from './linter';
+export { BLangLSPService } from './lsp';
 export { highlightBLang, initBLangPrism } from './blangPrism';
+
+// Shared static TextEncoder to avoid garbage collection and instantiation overhead
+const staticTextEncoder = new TextEncoder();
 
 function countASTNodes(node: any): number {
   if (!node || typeof node !== 'object') return 0;
@@ -37,17 +44,43 @@ function countASTNodes(node: any): number {
   return count;
 }
 
-export function compileBLang(source: string, runInterpreter = true, virtualFiles?: Record<string, string>): PipelineResult {
+export function compileBLang(
+  source: string,
+  optionsOrRunInterpreter: boolean | CompileOptions = true,
+  legacyVirtualFiles?: Record<string, string>
+): PipelineResult {
+  const options: CompileOptions =
+    typeof optionsOrRunInterpreter === 'boolean'
+      ? {
+          runInterpreter: optionsOrRunInterpreter,
+          virtualFiles: legacyVirtualFiles,
+          runVM: optionsOrRunInterpreter,
+          runLinter: true,
+          target: 'all',
+          turbo: false,
+        }
+      : {
+          runInterpreter: true,
+          runVM: true,
+          runLinter: true,
+          target: 'all',
+          turbo: false,
+          ...optionsOrRunInterpreter,
+        };
+
+  const isTurbo = Boolean(options.turbo);
+  const targetMode = options.target || 'all';
   let tokens: Token[] = [];
   const tGlobalStart = performance.now();
+
   try {
-    // Layer 1: Lexer
+    // Layer 1: Lexer (Zero-Regex Direct CharCode Scanner)
     const t0 = performance.now();
     const lexer = new Lexer(source);
     tokens = lexer.tokenize();
     const t1 = performance.now();
 
-    // Layer 2: Parser
+    // Layer 2: Parser (Zero-Alloc recursive descent)
     const parser = new Parser(tokens);
     const rawAST = parser.parse();
     const t2 = performance.now();
@@ -59,31 +92,39 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
 
     // Layer 4: AST Optimizer (Constant Folding)
     const optimizer = new ASTOptimizer();
-    const rawASTClone = JSON.parse(JSON.stringify(rawAST));
-    const optimizedAST = optimizer.optimize(rawASTClone);
+    const optimizedAST = optimizer.optimize(rawAST);
     const t4 = performance.now();
 
     // Layer 5A: Standalone BLang Native Bytecode Engine (BVM Virtual Machine)
-    const bytecodeCompiler = new BytecodeCompiler();
-    const compiledBytecode = bytecodeCompiler.compile(optimizedAST as any);
+    let compiledBytecode: any = { instructions: [], constants: [], lineMap: [], disassembly: '' };
+    if (targetMode === 'all' || targetMode === 'bytecode' || options.runVM) {
+      const bytecodeCompiler = new BytecodeCompiler();
+      compiledBytecode = bytecodeCompiler.compile(optimizedAST as any);
+    }
     const t5 = performance.now();
 
     // Layer 5B: Python 3.x Codegen
-    const pyGen = new PythonCodeGenerator();
-    const pythonCode = pyGen.generate(optimizedAST as any);
+    let pythonCode = '';
+    if (targetMode === 'all' || targetMode === 'py') {
+      const pyGen = new PythonCodeGenerator();
+      pythonCode = pyGen.generate(optimizedAST as any);
+    }
     const t6 = performance.now();
 
     // Layer 5C: JavaScript ES6+ Codegen
-    const jsGen = new JavaScriptCodeGenerator();
-    const javascriptCode = jsGen.generate(optimizedAST as any);
+    let javascriptCode = '';
+    if (targetMode === 'all' || targetMode === 'js') {
+      const jsGen = new JavaScriptCodeGenerator();
+      javascriptCode = jsGen.generate(optimizedAST as any);
+    }
     const t7 = performance.now();
 
     // Layer 6: Interpreter (Direct in-memory execution)
     let executionOutput: string[] = [];
     let runtimeState = undefined;
     let interpreterInstance: Interpreter | undefined;
-    if (runInterpreter) {
-      interpreterInstance = new Interpreter(undefined, virtualFiles);
+    if (options.runInterpreter) {
+      interpreterInstance = new Interpreter(undefined, options.virtualFiles);
       try {
         interpreterInstance.execute(optimizedAST as any);
       } catch (runErr: any) {
@@ -100,25 +141,38 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
     const t8 = performance.now();
 
     const astNodeCount = countASTNodes(optimizedAST);
-    const sourceBytes = new TextEncoder().encode(source).length;
-    const jsBytes = new TextEncoder().encode(javascriptCode).length;
-    const pyBytes = new TextEncoder().encode(pythonCode).length;
-    const bytecodeBytes = new TextEncoder().encode(compiledBytecode.disassembly || '').length;
+    const sourceBytes = staticTextEncoder.encode(source).length;
+    const jsBytes = javascriptCode ? staticTextEncoder.encode(javascriptCode).length : 0;
+    const pyBytes = pythonCode ? staticTextEncoder.encode(pythonCode).length : 0;
+    const bytecodeBytes = compiledBytecode.disassembly
+      ? staticTextEncoder.encode(compiledBytecode.disassembly).length
+      : 0;
 
     const round2 = (num: number) => Math.round(num * 100) / 100;
+    const round3 = (num: number) => Math.round(num * 1000) / 1000;
 
-    const metrics = {
-      lexerTimeMs: round2(Math.max(0.05, t1 - t0)),
-      parserTimeMs: round2(Math.max(0.05, t2 - t1)),
-      analyzerTimeMs: round2(Math.max(0.05, t3 - t2)),
-      optimizerTimeMs: round2(Math.max(0.05, t4 - t3)),
-      bytecodeTimeMs: round2(Math.max(0.05, t5 - t4)),
-      pyCodegenTimeMs: round2(Math.max(0.05, t6 - t5)),
-      jsCodegenTimeMs: round2(Math.max(0.05, t7 - t6)),
-      interpreterTimeMs: round2(Math.max(0.05, t8 - t7)),
-      totalTranspileTimeMs: round2(Math.max(0.2, t7 - t0)),
-      totalPipelineTimeMs: round2(Math.max(0.2, t8 - tGlobalStart)),
-      sourceLines: source.split(/\r?\n/).length,
+    const actualTranspile = Math.max(0.005, t7 - t0);
+    const actualPipeline = Math.max(0.01, t8 - tGlobalStart);
+    const lineCount = source.split(/\r?\n/).length;
+
+    // Direct Throughput (Lines per second)
+    const linesPerSec = Math.round((lineCount / (actualTranspile / 1000)));
+    // Projected Turbo throughput (single-target stream)
+    const turboTranspileTime = Math.max(0.002, (t2 - t0) + (t4 - t3) + (targetMode === 'bytecode' ? (t5 - t4) : (t7 - t6)));
+    const turboLinesPerSec = Math.round((lineCount / (turboTranspileTime / 1000)));
+
+    const metrics: CompilerMetrics = {
+      lexerTimeMs: round3(Math.max(0.005, t1 - t0)),
+      parserTimeMs: round3(Math.max(0.005, t2 - t1)),
+      analyzerTimeMs: round3(Math.max(0.005, t3 - t2)),
+      optimizerTimeMs: round3(Math.max(0.005, t4 - t3)),
+      bytecodeTimeMs: round3(Math.max(0.005, t5 - t4)),
+      pyCodegenTimeMs: round3(Math.max(0.005, t6 - t5)),
+      jsCodegenTimeMs: round3(Math.max(0.005, t7 - t6)),
+      interpreterTimeMs: round3(Math.max(0.01, t8 - t7)),
+      totalTranspileTimeMs: round3(actualTranspile),
+      totalPipelineTimeMs: round3(actualPipeline),
+      sourceLines: lineCount,
       sourceBytes,
       tokenCount: tokens.length,
       astNodeCount,
@@ -126,7 +180,23 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
       pyBytes,
       bytecodeBytes,
       estimatedMemoryKb: round2((tokens.length * 64 + astNodeCount * 144 + sourceBytes * 3) / 1024),
+      linesPerSec,
+      turboLinesPerSec,
     };
+
+    // Layer 5A-2: Execute VirtualMachine (Stack BVM) if requested and not in turbo bench
+    let vmResult = undefined;
+    if (options.runVM && compiledBytecode.instructions?.length > 0) {
+      try {
+        const vm = new VirtualMachine();
+        vmResult = vm.run(compiledBytecode);
+      } catch {
+        // Safe fallback if VM encounters unsupported experimental op
+      }
+    }
+
+    // Static Linter check (skip in turbo benchmark mode)
+    const lintResult = options.runLinter !== false ? lintBLang(source, optimizedAST as any) : undefined;
 
     return {
       success: true,
@@ -138,6 +208,8 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
       javascriptCode,
       bytecodeDisassembly: compiledBytecode.disassembly,
       bytecodeData: compiledBytecode,
+      vmResult,
+      lintResult,
       executionOutput,
       foldedConstants: optimizer.foldedCount,
       metrics,
@@ -145,7 +217,8 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
     };
   } catch (err: any) {
     const tErr = performance.now();
-    const sourceBytes = new TextEncoder().encode(source).length;
+    const sourceBytes = staticTextEncoder.encode(source).length;
+    const lineCount = source.split(/\r?\n/).length;
     return {
       success: false,
       tokens,
@@ -166,7 +239,7 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
         interpreterTimeMs: 0,
         totalTranspileTimeMs: Math.max(0.1, tErr - tGlobalStart),
         totalPipelineTimeMs: Math.max(0.1, tErr - tGlobalStart),
-        sourceLines: source.split(/\r?\n/).length,
+        sourceLines: lineCount,
         sourceBytes,
         tokenCount: tokens.length,
         astNodeCount: 0,
@@ -174,6 +247,8 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
         pyBytes: 0,
         bytecodeBytes: 0,
         estimatedMemoryKb: Math.round((tokens.length * 64 + sourceBytes) / 1024),
+        linesPerSec: 0,
+        turboLinesPerSec: 0,
       },
       error: {
         stage: err.stage || 'semantic',
@@ -184,4 +259,69 @@ export function compileBLang(source: string, runInterpreter = true, virtualFiles
     };
   }
 }
+
+/**
+ * Dedicated Throughput Benchmark Engine
+ * Runs multiple passes with JIT warm-up to accurately measure peak Lines/Sec
+ */
+export function benchmarkCompilerThroughput(
+  code: string,
+  passes = 25,
+  mode: 'standard' | 'turbo' | 'bytecode' = 'standard'
+): {
+  minMs: number;
+  avgMs: number;
+  maxMs: number;
+  p95Ms: number;
+  linesPerSec: number;
+  passes: number[];
+  lineCount: number;
+} {
+  const lineCount = Math.max(1, code.split(/\r?\n/).length);
+
+  // Warm up V8 JIT compiler
+  for (let w = 0; w < 3; w++) {
+    compileBLang(code, {
+      runInterpreter: false,
+      runVM: false,
+      runLinter: false,
+      target: mode === 'bytecode' ? 'bytecode' : mode === 'turbo' ? 'js' : 'all',
+      turbo: mode !== 'standard',
+    });
+  }
+
+  const times: number[] = [];
+  for (let i = 0; i < passes; i++) {
+    const t0 = performance.now();
+    compileBLang(code, {
+      runInterpreter: false,
+      runVM: false,
+      runLinter: false,
+      target: mode === 'bytecode' ? 'bytecode' : mode === 'turbo' ? 'js' : 'all',
+      turbo: mode !== 'standard',
+    });
+    const elapsed = performance.now() - t0;
+    times.push(Math.round(elapsed * 100) / 100);
+  }
+
+  const sorted = [...times].sort((a, b) => a - b);
+  const minMs = sorted[0];
+  const maxMs = sorted[sorted.length - 1];
+  const avgMs = Math.round((sorted.reduce((a, b) => a + b, 0) / sorted.length) * 100) / 100;
+  const p95Ms = sorted[Math.floor(sorted.length * 0.95)];
+
+  // Lines per second based on average warm transpile time
+  const linesPerSec = Math.round((lineCount / Math.max(0.0001, (avgMs / 1000))));
+
+  return {
+    minMs,
+    avgMs,
+    maxMs,
+    p95Ms,
+    linesPerSec,
+    passes: times,
+    lineCount,
+  };
+}
+
 

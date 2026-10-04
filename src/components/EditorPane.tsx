@@ -1,23 +1,20 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { PRESETS } from '../compiler/presets';
 import { formatBLang } from '../compiler/formatter';
 import { highlightBLang } from '../compiler/blangPrism';
 import {
-  Sparkles,
   Copy,
   Check,
   Download,
   X,
   FileCode,
   Wand2,
-  Code2,
 } from 'lucide-react';
 
 interface EditorPaneProps {
   code: string;
   onChange: (val: string) => void;
-  onSelectPreset: (presetId: string) => void;
-  currentPresetId: string;
+  onSelectPreset?: (presetId: string) => void;
+  currentPresetId?: string;
   errorLine?: number;
   activeFileName: string;
   openFiles?: string[];
@@ -40,7 +37,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [formatted, setFormatted] = useState(false);
-  const [enableHighlight, setEnableHighlight] = useState(true);
+  const enableHighlight = true;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -174,22 +171,6 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
 
         {/* Toolbar Controls */}
         <div className="flex items-center gap-1.5 px-3 py-1 shrink-0">
-          {/* Preset Selector */}
-          <div className="flex items-center gap-1 mr-1">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <select
-              value={currentPresetId}
-              onChange={(e) => onSelectPreset(e.target.value)}
-              className="bg-slate-800/90 text-slate-300 text-[11px] px-2 py-0.5 rounded border border-slate-700 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer max-w-[130px] truncate"
-            >
-              {PRESETS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Prettify Code Button */}
           <button
             onClick={handleFormat}
@@ -211,21 +192,6 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
                 <span className="font-semibold">Prettify Code</span>
               </>
             )}
-          </button>
-
-          {/* Syntax Highlighting Toggle */}
-          <button
-            onClick={() => setEnableHighlight(!enableHighlight)}
-            title={`Bật/Tắt tô màu cú pháp Prism.js (Hiện tại: ${enableHighlight ? 'Đang BẬT' : 'Đang TẮT'})`}
-            className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded border transition-colors cursor-pointer ${
-              enableHighlight
-                ? 'bg-indigo-950/50 text-indigo-300 border-indigo-500/30'
-                : 'bg-slate-800/60 text-slate-400 border-slate-700 hover:text-slate-200'
-            }`}
-          >
-            <Code2 className="w-3 h-3 text-indigo-400" />
-            <span className="hidden sm:inline">Prism</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${enableHighlight ? 'bg-emerald-400' : 'bg-slate-500'}`} />
           </button>
 
           {/* Save / Download .bl button */}
@@ -333,7 +299,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 text-slate-400">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            Prism.js BLang Highlighter
+            BLang Syntax Highlighter
           </span>
           <span>·</span>
           <span>Multi-pass Lexical Scope</span>

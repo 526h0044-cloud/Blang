@@ -338,6 +338,19 @@ export class JavaScriptCodeGenerator {
       case 'Continue':
         return `${this.indent()}continue;`;
 
+      case 'TryCatch': {
+        const tc = node as any;
+        const errVar = tc.errorVar ? sanitizeIdentifierJs(tc.errorVar) : '_err';
+        const tryBody = this.genBlock(tc.tryBlock);
+        const catchBody = this.genBlock(tc.catchBlock);
+        return `${this.indent()}try {\n${tryBody}\n${this.indent()}} catch (${errVar}) {\n${catchBody}\n${this.indent()}}`;
+      }
+
+      case 'Throw': {
+        const th = node as any;
+        return `${this.indent()}throw ${this.genExpression(th.expression)};`;
+      }
+
       case 'Print': {
         const p = node as PrintNode;
         const args = p.arguments.map((a) => this.genExpression(a)).join(', ');

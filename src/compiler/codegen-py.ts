@@ -321,6 +321,19 @@ export class PythonCodeGenerator {
         return `${this.indent()}print(${args})`;
       }
 
+      case 'TryCatch': {
+        const tc = node as any;
+        const errVar = tc.errorVar ? sanitizeIdentifierPy(tc.errorVar) : '_err';
+        const tryBody = this.genBlock(tc.tryBlock);
+        const catchBody = this.genBlock(tc.catchBlock);
+        return `${this.indent()}try:\n${tryBody}\n${this.indent()}except Exception as ${errVar}:\n${catchBody}`;
+      }
+
+      case 'Throw': {
+        const th = node as any;
+        return `${this.indent()}raise Exception(${this.genExpression(th.expression)})`;
+      }
+
       case 'Import': {
         const imp = node as any;
         const mod = imp.modulePath.replace('.bl', '').replace(/[\/\-]/g, '_');
@@ -395,6 +408,9 @@ export class PythonCodeGenerator {
         const right = this.genExpression(bin.right);
         if (bin.operator === '+') {
           return `_bl_add(${left}, ${right})`;
+        }
+        if (bin.operator === '??') {
+          return `(${left} if (${left}) is not None else ${right})`;
         }
         let op = bin.operator;
         if (op === 'and') op = 'and';

@@ -18,6 +18,9 @@ export type TokenType =
   | 'function'
   | 'end'
   | 'return'
+  | 'try'
+  | 'catch'
+  | 'throw'
   | 'and'
   | 'or'
   | 'not'
@@ -39,6 +42,10 @@ export type TokenType =
   | '='
   | '+='
   | '-='
+  | '*='
+  | '/='
+  | '%='
+  | '??'
   | '=='
   | '!='
   | '<'
@@ -87,6 +94,8 @@ export type ASTNodeType =
   | 'Continue'
   | 'Print'
   | 'Import'
+  | 'TryCatch'
+  | 'Throw'
   | 'ExpressionStatement';
 
 export interface BaseASTNode {
@@ -125,7 +134,7 @@ export interface VarDeclNode extends BaseASTNode {
 export interface AssignNode extends BaseASTNode {
   type: 'Assign';
   target: IdentifierNode | IndexNode;
-  operator: '=' | '+=' | '-=';
+  operator: '=' | '+=' | '-=' | '*=' | '/=' | '%=';
   value: ASTNode;
 }
 
@@ -226,6 +235,18 @@ export interface ImportNode extends BaseASTNode {
   modulePath: string;
 }
 
+export interface TryCatchNode extends BaseASTNode {
+  type: 'TryCatch';
+  tryBlock: BlockNode;
+  errorVar?: string;
+  catchBlock: BlockNode;
+}
+
+export interface ThrowNode extends BaseASTNode {
+  type: 'Throw';
+  expression: ASTNode;
+}
+
 export type ASTNode =
   | ProgramNode
   | BlockNode
@@ -249,6 +270,8 @@ export type ASTNode =
   | ContinueNode
   | PrintNode
   | ImportNode
+  | TryCatchNode
+  | ThrowNode
   | ExpressionStatementNode;
 
 export interface SymbolInfo {
@@ -256,6 +279,7 @@ export interface SymbolInfo {
   type: string;
   line: number;
   col: number;
+  slot?: number;
   parameters?: string[];
 }
 
@@ -284,6 +308,17 @@ export interface CompilerMetrics {
   pyBytes: number;
   bytecodeBytes: number;
   estimatedMemoryKb: number;
+  linesPerSec?: number;
+  turboLinesPerSec?: number;
+}
+
+export interface CompileOptions {
+  runInterpreter?: boolean;
+  runVM?: boolean;
+  runLinter?: boolean;
+  target?: 'all' | 'js' | 'py' | 'bytecode';
+  turbo?: boolean;
+  virtualFiles?: Record<string, string>;
 }
 
 export interface CompilerDiagnostic {
@@ -339,6 +374,9 @@ export interface PipelineResult {
   javascriptCode: string;
   bytecodeDisassembly?: string;
   bytecodeData?: any;
+  vmResult?: any;
+  lintResult?: any;
+  diagnostics?: CompilerDiagnostic[];
   executionOutput: string[];
   foldedConstants: number;
   metrics?: CompilerMetrics;

@@ -49,8 +49,9 @@ export class Parser {
     return this.currentToken().type === type;
   }
 
-  private match(...types: TokenType[]): boolean {
-    if (types.includes(this.currentToken().type)) {
+  private match(t1: TokenType, t2?: TokenType, t3?: TokenType, t4?: TokenType, t5?: TokenType): boolean {
+    const curType = this.currentToken().type;
+    if (curType === t1 || (t2 && curType === t2) || (t3 && curType === t3) || (t4 && curType === t4) || (t5 && curType === t5)) {
       this.advance();
       return true;
     }
@@ -76,14 +77,46 @@ export class Parser {
     }
   }
 
+  public errors: any[] = [];
+
+  private synchronize() {
+    this.advance();
+    while (!this.check('EOF')) {
+      if (this.tokens[this.pos - 1]?.type === ';') return;
+      if (this.tokens[this.pos - 1]?.type === '}') return;
+      switch (this.currentToken().type) {
+        case 'function':
+        case 'let':
+        case 'for':
+        case 'if':
+        case 'while':
+        case 'print':
+        case 'return':
+        case 'try':
+        case 'throw':
+          return;
+      }
+      this.advance();
+    }
+  }
+
   public parse(): ProgramNode {
     const statements: ASTNode[] = [];
+    this.errors = [];
     while (!this.check('EOF')) {
       this.consumeSemicolons();
       if (this.check('EOF')) break;
-      const stmt = this.parseStatement();
-      if (stmt) statements.push(stmt);
+      try {
+        const stmt = this.parseStatement();
+        if (stmt) statements.push(stmt);
+      } catch (err: any) {
+        this.errors.push(err);
+        this.synchronize();
+      }
       this.consumeSemicolons();
+    }
+    if (this.errors.length > 0 && statements.length === 0) {
+      throw this.errors[0];
     }
     return { type: 'Program', statements, line: 1, col: 1 };
   }
@@ -132,6 +165,14 @@ export class Parser {
 
     if (tok.type === 'print') {
       return this.parsePrint();
+    }
+
+    if (tok.type === 'try') {
+      return this.parseTryCatch();
+    }
+
+    if (tok.type === 'throw') {
+      return this.parseThrow();
     }
 
     if (tok.type === 'import') {
@@ -290,12 +331,44 @@ export class Parser {
     };
   }
 
+  private parseTryCatch(): ASTNode {
+    const tryTok = this.expect('try');
+    const tryBlock = this.parseBlock();
+    this.expect('catch');
+    let errorVar: string | undefined;
+    if (this.match('(')) {
+      const id = this.expect('IDENTIFIER');
+      errorVar = id.value;
+      this.expect(')');
+    }
+    const catchBlock = this.parseBlock();
+    return {
+      type: 'TryCatch',
+      tryBlock,
+      errorVar,
+      catchBlock,
+      line: tryTok.line,
+      col: tryTok.col,
+    };
+  }
+
+  private parseThrow(): ASTNode {
+    const throwTok = this.expect('throw');
+    const expr = this.parseExpression();
+    return {
+      type: 'Throw',
+      expression: expr,
+      line: throwTok.line,
+      col: throwTok.col,
+    };
+  }
+
   private parseAssignmentOrExpr(): ASTNode {
     const expr = this.parseExpression();
     const tok = this.currentToken();
 
-    if (tok.type === '=' || tok.type === '+=' || tok.type === '-=') {
-      const op = this.advance().type as '=' | '+=' | '-=';
+    if (tok.type === '=' || tok.type === '+=' || tok.type === '-=' || tok.type === '*=' || tok.type === '/=' || tok.type === '%=') {
+      const op = this.advance().type as '=' | '+=' | '-=' | '*=' | '/=' | '%=';
       const value = this.parseExpression();
       if (expr.type !== 'Identifier' && expr.type !== 'Index') {
         throw {
@@ -324,7 +397,17 @@ export class Parser {
   }
 
   public parseExpression(): ASTNode {
-    return this.parseLogicalOr();
+    return this.parseNullCoalescing();
+  }
+
+  private parseNullCoalescing(): ASTNode {
+    let left = this.parseLogicalOr();
+    while (this.match('??')) {
+      const opTok = this.tokens[this.pos - 1];
+      const right = this.parseLogicalOr();
+      left = { type: 'BinaryOp', left, operator: '??', right, line: opTok.line, col: opTok.col };
+    }
+    return left;
   }
 
   private parseLogicalOr(): ASTNode {

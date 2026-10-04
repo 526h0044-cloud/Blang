@@ -20,6 +20,8 @@ import sys
 import os
 import re
 import math
+import time
+import random
 if sys.platform != "win32":
     try:
         import readline
@@ -125,6 +127,9 @@ class TokenType:
     # Additional helper keywords
     LET         = "let"
     IN          = "in"
+    TRY         = "try"
+    CATCH       = "catch"
+    THROW       = "throw"
 
     # Operators
     RANDOM_MACRO = "RANDOM_MACRO"
@@ -136,6 +141,10 @@ class TokenType:
     ASSIGN      = "="
     PLUS_ASSIGN = "+="
     MINUS_ASSIGN= "-="
+    MUL_ASSIGN  = "*="
+    DIV_ASSIGN  = "/="
+    MOD_ASSIGN  = "%="
+    NULL_COALESCE = "??"
     EQ          = "=="
     NEQ         = "!="
     LT          = "<"
@@ -181,6 +190,9 @@ KEYWORDS: Dict[str, str] = {
     "import":   TokenType.IMPORT,
     "let":      TokenType.LET,
     "in":       TokenType.IN,
+    "try":      TokenType.TRY,
+    "catch":    TokenType.CATCH,
+    "throw":    TokenType.THROW,
     "null":     TokenType.NULL,
     "None":     TokenType.NULL,
     "none":     TokenType.NULL,
@@ -407,6 +419,22 @@ class Lexer:
                 self.advance(); self.advance()
                 tokens.append(Token(TokenType.MINUS_ASSIGN, "-=", line, col))
                 continue
+            if two_ch == "*=":
+                self.advance(); self.advance()
+                tokens.append(Token(TokenType.MUL_ASSIGN, "*=", line, col))
+                continue
+            if two_ch == "/=":
+                self.advance(); self.advance()
+                tokens.append(Token(TokenType.DIV_ASSIGN, "/=", line, col))
+                continue
+            if two_ch == "%=":
+                self.advance(); self.advance()
+                tokens.append(Token(TokenType.MOD_ASSIGN, "%=", line, col))
+                continue
+            if two_ch == "??":
+                self.advance(); self.advance()
+                tokens.append(Token(TokenType.NULL_COALESCE, "??", line, col))
+                continue
 
             if ch == "%" and self.source[self.pos:].startswith("%random"):
                 for _ in range(7):
@@ -566,6 +594,16 @@ class ExpressionStatementNode(ASTNode):
 class ImportNode(ASTNode):
     module_path: str = ""
 
+@dataclass
+class TryCatchNode(ASTNode):
+    try_block: BlockNode = None
+    error_var: Optional[str] = None
+    catch_block: BlockNode = None
+
+@dataclass
+class ThrowNode(ASTNode):
+    expression: ASTNode = None
+
 
 class Parser:
     """
@@ -615,18 +653,40 @@ class Parser:
         while self.check(TokenType.SEMICOLON):
             self.advance()
 
+    def synchronize(self):
+        """Error recovery synchronization at statement boundaries."""
+        self.advance()
+        while not self.check(TokenType.EOF):
+            prev = self.tokens[self.pos - 1] if self.pos > 0 else None
+            if prev and prev.type in (TokenType.SEMICOLON, TokenType.RBRACE):
+                return
+            if self.current_token().type in (
+                TokenType.LET, TokenType.FUNCTION, TokenType.IF,
+                TokenType.WHILE, TokenType.FOR, TokenType.RETURN,
+                TokenType.PRINT, TokenType.TRY, TokenType.THROW, TokenType.IMPORT
+            ):
+                return
+            self.advance()
+
     # --- Grammar Rules ---
 
     def parse(self) -> ProgramNode:
         prog = ProgramNode(line=1, col=1)
+        errors = []
         while not self.check(TokenType.EOF):
             self.consume_semicolons()
             if self.check(TokenType.EOF):
                 break
-            stmt = self.parse_statement()
-            if stmt:
-                prog.statements.append(stmt)
+            try:
+                stmt = self.parse_statement()
+                if stmt:
+                    prog.statements.append(stmt)
+            except Exception as e:
+                errors.append(e)
+                self.synchronize()
             self.consume_semicolons()
+        if errors and not prog.statements:
+            raise errors[0]
         return prog
 
     def parse_block(self) -> BlockNode:
@@ -666,6 +726,14 @@ class Parser:
         # For Loop: for (<item> in <iterable>) { ... }
         if tok.type == TokenType.FOR:
             return self.parse_for()
+
+        # Try-Catch Statement
+        if tok.type == TokenType.TRY:
+            return self.parse_try_catch()
+
+        # Throw Statement
+        if tok.type == TokenType.THROW:
+            return self.parse_throw()
 
         # Return: return [<expr>]
         if tok.type == TokenType.RETURN:
@@ -712,6 +780,23 @@ class Parser:
         if self.match(TokenType.ASSIGN):
             init = self.parse_expression()
         return VarDeclNode(line=let_tok.line, col=let_tok.col, name=id_tok.value, initializer=init)
+
+    def parse_try_catch(self) -> TryCatchNode:
+        try_tok = self.expect(TokenType.TRY)
+        try_block = self.parse_block()
+        self.expect(TokenType.CATCH)
+        error_var = None
+        if self.match(TokenType.LPAREN):
+            id_tok = self.expect(TokenType.IDENTIFIER)
+            error_var = id_tok.value
+            self.expect(TokenType.RPAREN)
+        catch_block = self.parse_block()
+        return TryCatchNode(line=try_tok.line, col=try_tok.col, try_block=try_block, error_var=error_var, catch_block=catch_block)
+
+    def parse_throw(self) -> ThrowNode:
+        throw_tok = self.expect(TokenType.THROW)
+        expr = self.parse_expression()
+        return ThrowNode(line=throw_tok.line, col=throw_tok.col, expression=expr)
 
     def parse_function_def(self) -> FunctionDefNode:
         fn_tok = self.expect(TokenType.FUNCTION)
@@ -2284,6 +2369,7 @@ class Interpreter:
         self.current_env = self.global_env
         self.stdout_callback = stdout_callback or print
         self.output_logs: List[str] = []
+        self.imported_modules: Set[str] = set()
         self._init_builtins()
 
     def log(self, *args):
@@ -2463,51 +2549,164 @@ class Interpreter:
         self.global_env.define("polygon_area", polygon_s_fn)
 
         # Geometry: Tam giác (triangle / tri, diện tích: s/S, chu vi: c/C)
-        triangle_s_fn = lambda args: 0.5 * args[0] * args[1]
-        triangle_c_fn = lambda args: float(args[0] + args[1] + args[2])
-        self.global_env.define("triangle_s", triangle_s_fn)
-        self.global_env.define("triangle_S", triangle_s_fn)
-        self.global_env.define("triangle_area", triangle_s_fn)
-        self.global_env.define("tri_s", triangle_s_fn)
-        self.global_env.define("tri_S", triangle_s_fn)
-        self.global_env.define("tri_area", triangle_s_fn)
-
-        self.global_env.define("triangle_c", triangle_c_fn)
-        self.global_env.define("triangle_C", triangle_c_fn)
-        self.global_env.define("triangle_perimeter", triangle_c_fn)
-        self.global_env.define("tri_c", triangle_c_fn)
-        self.global_env.define("tri_C", triangle_c_fn)
-        self.global_env.define("tri_perimeter", triangle_c_fn)
+        triangle_s_fn = lambda args: 0.5 * float(args[0]) * float(args[1]) if len(args) >= 2 else 0.0
+        triangle_c_fn = lambda args: float(args[0]) + float(args[1]) + float(args[2]) if len(args) >= 3 else 0.0
+        for alias in ["triangle_s", "triangle_S", "triangle_area", "tri_s", "tri_S", "tri_area"]:
+            self.global_env.define(alias, triangle_s_fn)
+        for alias in ["triangle_c", "triangle_C", "triangle_perimeter", "tri_c", "tri_C", "tri_perimeter"]:
+            self.global_env.define(alias, triangle_c_fn)
 
         # Standard Library: String Operations
-        self.global_env.define("upper", lambda args: str(args[0]).upper())
-        self.global_env.define("lower", lambda args: str(args[0]).lower())
-        self.global_env.define("trim", lambda args: str(args[0]).strip())
-        self.global_env.define("replace", lambda args: str(args[0]).replace(str(args[1]), str(args[2])))
-        self.global_env.define("split", lambda args: str(args[0]).split(str(args[1])))
-        self.global_env.define("join", lambda args: (str(args[1]) if len(args) > 1 else "").join(str(x) for x in args[0]) if isinstance(args[0], list) else str(args[0]))
-        self.global_env.define("contains", lambda args: str(args[1]) in str(args[0]))
+        self.global_env.define("upper", lambda args: str(args[0]).upper() if args else "")
+        self.global_env.define("lower", lambda args: str(args[0]).lower() if args else "")
+        self.global_env.define("trim", lambda args: str(args[0]).strip() if args else "")
+        self.global_env.define("replace", lambda args: str(args[0]).replace(str(args[1]), str(args[2])) if len(args) >= 3 else (str(args[0]) if args else ""))
+        self.global_env.define("split", lambda args: str(args[0]).split(str(args[1]) if len(args) > 1 else None) if args else [])
+        self.global_env.define("join", lambda args: (str(args[1]) if len(args) > 1 else "").join(str(x) for x in args[0]) if (args and isinstance(args[0], list)) else (str(args[0]) if args else ""))
+        self.global_env.define("contains", lambda args: (str(args[1]) in str(args[0])) if len(args) >= 2 else False)
 
         # Standard Library: List & Aggregation
-        self.global_env.define("sum", lambda args: float(sum(float(x) for x in args[0])) if isinstance(args[0], list) and args[0] else 0.0)
-        self.global_env.define("min_val", lambda args: float(min(float(x) for x in args[0])) if isinstance(args[0], list) and args[0] else 0.0)
-        self.global_env.define("max_val", lambda args: float(max(float(x) for x in args[0])) if isinstance(args[0], list) and args[0] else 0.0)
-        self.global_env.define("avg", lambda args: float(sum(float(x) for x in args[0])) / len(args[0]) if isinstance(args[0], list) and args[0] else 0.0)
-        self.global_env.define("reverse", lambda args: list(reversed(args[0])) if isinstance(args[0], list) else (str(args[0])[::-1] if isinstance(args[0], str) else args[0]))
+        def _to_float_list(arg):
+            if not isinstance(arg, list):
+                return []
+            nums = []
+            for item in arg:
+                try:
+                    nums.append(float(item))
+                except (ValueError, TypeError):
+                    pass
+            return nums
+
+        self.global_env.define("sum", lambda args: float(sum(_to_float_list(args[0]))) if (args and isinstance(args[0], list) and args[0]) else 0.0)
+        self.global_env.define("min_val", lambda args: float(min(_to_float_list(args[0]))) if (args and isinstance(args[0], list) and _to_float_list(args[0])) else 0.0)
+        self.global_env.define("max_val", lambda args: float(max(_to_float_list(args[0]))) if (args and isinstance(args[0], list) and _to_float_list(args[0])) else 0.0)
+        self.global_env.define("avg", lambda args: (float(sum(_to_float_list(args[0]))) / len(_to_float_list(args[0]))) if (args and isinstance(args[0], list) and _to_float_list(args[0])) else 0.0)
+        self.global_env.define("reverse", lambda args: list(reversed(args[0])) if (args and isinstance(args[0], list)) else (str(args[0])[::-1] if (args and isinstance(args[0], str)) else (args[0] if args else None)))
 
         # Standard Library: System & Time
-        import time as _t
-        self.global_env.define("time_now", lambda args: float(_t.time() * 1000.0))
+        self.global_env.define("time_now", lambda args=None: float(time.time() * 1000.0))
+
+        # Standard Library: High-Order Collections
+        def _invoke_callable(fn, call_args):
+            if hasattr(fn, "call"):
+                return fn.call(self, call_args, 0, 0)
+            if callable(fn):
+                try:
+                    return fn(call_args)
+                except TypeError:
+                    return fn(*call_args)
+            return None
+
+        def _map_fn(args):
+            arr, fn = args[0], args[1]
+            if not isinstance(arr, list):
+                return []
+            return [_invoke_callable(fn, [x, i]) for i, x in enumerate(arr)]
+        self.global_env.define("map", _map_fn)
+
+        def _filter_fn(args):
+            arr, fn = args[0], args[1]
+            if not isinstance(arr, list):
+                return []
+            return [x for i, x in enumerate(arr) if bool(_invoke_callable(fn, [x, i]))]
+        self.global_env.define("filter", _filter_fn)
+
+        def _reduce_fn(args):
+            arr, fn = args[0], args[1]
+            acc = args[2] if len(args) > 2 else (arr[0] if arr else None)
+            start_i = 0 if len(args) > 2 else 1
+            if not isinstance(arr, list):
+                return acc
+            for i in range(start_i, len(arr)):
+                acc = _invoke_callable(fn, [acc, arr[i], i])
+            return acc
+        self.global_env.define("reduce", _reduce_fn)
+
+        def _find_fn(args):
+            arr, fn = args[0], args[1]
+            if not isinstance(arr, list):
+                return None
+            for i, x in enumerate(arr):
+                if bool(_invoke_callable(fn, [x, i])):
+                    return x
+            return None
+        self.global_env.define("find", _find_fn)
+
+        self.global_env.define("slice", lambda args: args[0][int(args[1]):(int(args[2]) if len(args) > 2 else None)] if isinstance(args[0], (list, str)) else [])
+        self.global_env.define("concat", lambda args: (args[0] + args[1]) if isinstance(args[0], list) and isinstance(args[1], list) else (str(args[0]) + str(args[1])))
+        self.global_env.define("push", lambda args: (args[0].append(args[1]), len(args[0]))[1] if isinstance(args[0], list) else 0)
+        self.global_env.define("pop", lambda args: args[0].pop() if (isinstance(args[0], list) and args[0]) else None)
+        self.global_env.define("shift", lambda args: args[0].pop(0) if (isinstance(args[0], list) and args[0]) else None)
+        self.global_env.define("unshift", lambda args: (args[0].insert(0, args[1]), len(args[0]))[1] if isinstance(args[0], list) else 0)
+        self.global_env.define("sort", lambda args: sorted(args[0]) if isinstance(args[0], list) else [])
+        self.global_env.define("keys", lambda args: list(args[0].keys()) if isinstance(args[0], dict) else [])
+        self.global_env.define("values", lambda args: list(args[0].values()) if isinstance(args[0], dict) else [])
+        self.global_env.define("entries", lambda args: [[k, v] for k, v in args[0].items()] if isinstance(args[0], dict) else [])
+
+        # Standard Library: Vietnamese Unicode & UTF-8
+        import unicodedata
+        def _vi_no_accents(args):
+            s = str(args[0] if args else "")
+            nfkd = unicodedata.normalize('NFD', s)
+            no_acc = "".join(c for c in nfkd if unicodedata.category(c) != 'Mn')
+            return no_acc.replace('đ', 'd').replace('Đ', 'D')
+        self.global_env.define("vietnamese_remove_accents", _vi_no_accents)
+        self.global_env.define("vi_no_accents", _vi_no_accents)
+        self.global_env.define("vietnamese_sort_key", lambda args: _vi_no_accents(args).lower())
+        self.global_env.define("vi_sort_key", lambda args: _vi_no_accents(args).lower())
+        self.global_env.define("utf8_len", lambda args: len(str(args[0] if args else "")))
+        self.global_env.define("str_char_at", lambda args: str(args[0])[int(args[1])] if (len(args) > 1 and 0 <= int(args[1]) < len(str(args[0]))) else "")
+        self.global_env.define("str_starts_with", lambda args: str(args[0]).startswith(str(args[1])) if len(args) >= 2 else False)
+        self.global_env.define("str_ends_with", lambda args: str(args[0]).endswith(str(args[1])) if len(args) >= 2 else False)
+        self.global_env.define("normalize_vn", lambda args: unicodedata.normalize('NFC', str(args[0] if args else "")))
+
+        # Standard Library: JSON & File I/O
+        import json as _py_json
+        self.global_env.define("json_stringify", lambda args: _py_json.dumps(args[0], ensure_ascii=False, indent=int(args[1]) if len(args) > 1 else 2))
+        self.global_env.define("json_parse", lambda args: _py_json.loads(str(args[0])))
+        def _read_file_fn(args):
+            with open(str(args[0]), "r", encoding="utf-8") as f:
+                return f.read()
+        self.global_env.define("read_file", _read_file_fn)
+        self.global_env.define("file_read", _read_file_fn)
+        def _write_file_fn(args):
+            with open(str(args[0]), "w", encoding="utf-8") as f:
+                f.write(str(args[1] if len(args) > 1 else ""))
+            return True
+        self.global_env.define("write_file", _write_file_fn)
+        self.global_env.define("file_write", _write_file_fn)
+        self.global_env.define("file_exists", lambda args: os.path.exists(str(args[0])))
+        self.global_env.define("path_join", lambda args: os.path.join(*[str(x) for x in args]))
+
+        # Standard Library: Python & Native Interop FFI
+        def _ffi_call_fn(args):
+            if len(args) < 2:
+                return None
+            mod_name, fn_name = str(args[0]), str(args[1])
+            fn_args = args[2:]
+            import importlib
+            m = importlib.import_module(mod_name)
+            func = getattr(m, fn_name)
+            return func(*fn_args)
+        self.global_env.define("ffi_call", _ffi_call_fn)
+        self.global_env.define("py_eval", lambda args: eval(str(args[0])))
+        def _py_exec_fn(args):
+            loc = {}
+            exec(str(args[0]), globals(), loc)
+            return loc
+        self.global_env.define("py_exec", _py_exec_fn)
+        self.global_env.define("py_import", lambda args: __import__(str(args[0])))
 
         # Random Number Generator: %random(a, b)% or random(a, b)
         def _bl_random_fn(args):
-            import random as _r
-            a = float(args[0]) if len(args) > 0 else 0.0
+            if not args:
+                return float(random.random())
+            a = float(args[0])
             b = float(args[1]) if len(args) > 1 else 100.0
             lo, hi = min(a, b), max(a, b)
             if a.is_integer() and b.is_integer():
-                return float(_r.randint(int(lo), int(hi)))
-            return float(_r.uniform(lo, hi))
+                return float(random.randint(int(lo), int(hi)))
+            return float(random.uniform(lo, hi))
         self.global_env.define("random", _bl_random_fn)
 
     def execute(self, ast: ProgramNode) -> Any:
@@ -2531,20 +2730,36 @@ class Interpreter:
         if isinstance(node, AssignNode):
             val = self.evaluate(node.value)
             if isinstance(node.target, IdentifierNode):
+                name = node.target.name
                 if node.operator == "=":
-                    self.current_env.set(node.target.name, val)
+                    self.current_env.set(name, val)
                 elif node.operator == "+=":
-                    cur = self.current_env.get(node.target.name, node.line, node.col)
+                    cur = self.current_env.get(name, node.line, node.col)
                     if isinstance(cur, str) or isinstance(val, str):
-                        self.current_env.set(node.target.name, str(cur) + str(val))
+                        self.current_env.set(name, str(cur) + str(val))
                     else:
-                        self.current_env.set(node.target.name, cur + val)
+                        self.current_env.set(name, cur + val)
                 elif node.operator == "-=":
-                    cur = self.current_env.get(node.target.name, node.line, node.col)
-                    self.current_env.set(node.target.name, cur - val)
+                    cur = self.current_env.get(name, node.line, node.col)
+                    self.current_env.set(name, cur - val)
+                elif node.operator == "*=":
+                    cur = self.current_env.get(name, node.line, node.col)
+                    self.current_env.set(name, cur * val)
+                elif node.operator == "/=":
+                    cur = self.current_env.get(name, node.line, node.col)
+                    if val == 0:
+                        raise BLangRuntimeError("Division by zero in '/='", node.line, node.col)
+                    self.current_env.set(name, cur / val)
+                elif node.operator == "%=":
+                    cur = self.current_env.get(name, node.line, node.col)
+                    if val == 0:
+                        raise BLangRuntimeError("Modulo by zero in '%='", node.line, node.col)
+                    self.current_env.set(name, cur % val)
             elif isinstance(node.target, IndexNode):
                 tgt = self.evaluate(node.target.target)
                 idx = self.evaluate(node.target.index)
+                if not isinstance(tgt, (list, dict)):
+                    raise BLangRuntimeError(f"Cannot index-assign into '{type(tgt).__name__}'", node.line, node.col)
                 if node.operator == "=":
                     tgt[idx] = val
                 elif node.operator == "+=":
@@ -2554,6 +2769,16 @@ class Interpreter:
                         tgt[idx] = tgt[idx] + val
                 elif node.operator == "-=":
                     tgt[idx] = tgt[idx] - val
+                elif node.operator == "*=":
+                    tgt[idx] = tgt[idx] * val
+                elif node.operator == "/=":
+                    if val == 0:
+                        raise BLangRuntimeError("Division by zero in '/='", node.line, node.col)
+                    tgt[idx] = tgt[idx] / val
+                elif node.operator == "%=":
+                    if val == 0:
+                        raise BLangRuntimeError("Modulo by zero in '%='", node.line, node.col)
+                    tgt[idx] = tgt[idx] % val
             return val
 
         if isinstance(node, FunctionDefNode):
@@ -2615,19 +2840,20 @@ class Interpreter:
             iterable = self.evaluate(node.iterable)
             if not hasattr(iterable, "__iter__"):
                 raise BLangRuntimeError(f"Target '{type(iterable).__name__}' is not iterable", node.line, node.col)
-            for item in iterable:
-                sub_env = Environment(parent=self.current_env)
-                sub_env.define(node.variable, item)
-                prev = self.current_env
-                self.current_env = sub_env
-                try:
-                    self.execute_block(node.body)
-                except BreakLoop:
-                    break
-                except ContinueLoop:
-                    continue
-                finally:
-                    self.current_env = prev
+            sub_env = Environment(parent=self.current_env)
+            prev = self.current_env
+            self.current_env = sub_env
+            try:
+                for item in iterable:
+                    sub_env.define(node.variable, item)
+                    try:
+                        self.execute_block(node.body)
+                    except ContinueLoop:
+                        continue
+                    except BreakLoop:
+                        break
+            finally:
+                self.current_env = prev
             return None
 
         if isinstance(node, ReturnNode):
@@ -2645,19 +2871,60 @@ class Interpreter:
             self.log(*args)
             return None
 
+        if isinstance(node, TryCatchNode):
+            try:
+                return self.execute_block(node.try_block)
+            except Exception as e:
+                prev = self.current_env
+                self.current_env = Environment(parent=prev)
+                try:
+                    if node.error_var:
+                        err_msg = str(getattr(e, "message", str(e)))
+                        self.current_env.define(node.error_var, err_msg)
+                    return self.execute_block(node.catch_block)
+                finally:
+                    self.current_env = prev
+
+        if isinstance(node, ThrowNode):
+            val = self.evaluate(node.expression)
+            raise BLangRuntimeError(str(val), node.line, node.col)
+
         if isinstance(node, ImportNode):
-            path = node.module_path
-            if not os.path.exists(path) and not path.endswith(".bl"):
+            raw_path = node.module_path.strip()
+            # Standard library prefix check
+            if raw_path.startswith("std:"):
+                # Standard library builtins are already in global_env
+                return None
+
+            # Hierarchical dot syntax support: pkg.submodule -> pkg/submodule.bl
+            path = raw_path
+            if "/" not in path and "\\" not in path and not path.endswith(".bl") and "." in path:
+                path = path.replace(".", "/") + ".bl"
+            elif not os.path.exists(path) and not path.endswith(".bl"):
                 path += ".bl"
-            if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as f:
-                    mod_src = f.read()
-                mod_lexer = Lexer(mod_src)
-                mod_tokens = mod_lexer.tokenize()
-                mod_parser = Parser(mod_tokens, mod_src)
-                mod_ast = mod_parser.parse()
-                mod_opt = ASTOptimizer().optimize(mod_ast)
+
+            if not os.path.exists(path):
+                raise BLangRuntimeError(f"Module '{node.module_path}' not found (resolved: '{path}')", node.line, node.col)
+
+            abs_path = os.path.abspath(path)
+            if abs_path in self.imported_modules:
+                return None
+            self.imported_modules.add(abs_path)
+
+            with open(path, "r", encoding="utf-8") as f:
+                mod_src = f.read()
+            mod_lexer = Lexer(mod_src)
+            mod_tokens = mod_lexer.tokenize()
+            mod_parser = Parser(mod_tokens, mod_src)
+            mod_ast = mod_parser.parse()
+            mod_opt = ASTOptimizer().optimize(mod_ast)
+
+            prev_env = self.current_env
+            self.current_env = self.global_env
+            try:
                 self.execute(mod_opt)
+            finally:
+                self.current_env = prev_env
             return None
 
         if isinstance(node, BlockNode):
@@ -2735,19 +3002,33 @@ class Interpreter:
                     raise BLangRuntimeError("Division by zero", node.line, node.col)
                 return l / r
             elif op == "%":
+                if r == 0:
+                    raise BLangRuntimeError("Modulo by zero", node.line, node.col)
                 return l % r
             elif op == "==":
                 return l == r
             elif op == "!=":
                 return l != r
             elif op == "<":
-                return l < r
+                try:
+                    return l < r
+                except TypeError:
+                    raise BLangRuntimeError(f"Unsupported comparison '<' between '{type(l).__name__}' and '{type(r).__name__}'", node.line, node.col)
             elif op == "<=":
-                return l <= r
+                try:
+                    return l <= r
+                except TypeError:
+                    raise BLangRuntimeError(f"Unsupported comparison '<=' between '{type(l).__name__}' and '{type(r).__name__}'", node.line, node.col)
             elif op == ">":
-                return l > r
+                try:
+                    return l > r
+                except TypeError:
+                    raise BLangRuntimeError(f"Unsupported comparison '>' between '{type(l).__name__}' and '{type(r).__name__}'", node.line, node.col)
             elif op == ">=":
-                return l >= r
+                try:
+                    return l >= r
+                except TypeError:
+                    raise BLangRuntimeError(f"Unsupported comparison '>=' between '{type(l).__name__}' and '{type(r).__name__}'", node.line, node.col)
             elif op == "and":
                 return l and r
             elif op == "or":
@@ -2843,6 +3124,7 @@ def run_repl():
     print("=" * 70)
 
     interpreter = Interpreter(stdout_callback=print)
+    analyzer = SemanticAnalyzer("")
     current_source_accum = []
     brace_balance = 0
 
@@ -2874,6 +3156,7 @@ def run_repl():
                 continue
             elif stripped == ":reset":
                 interpreter = Interpreter(stdout_callback=print)
+                analyzer = SemanticAnalyzer("")
                 print("Interpreter environment reset to initial state.")
                 continue
             elif stripped == ":clear":
@@ -2897,8 +3180,8 @@ def run_repl():
             parser = Parser(tokens, source_block)
             ast = parser.parse()
 
-            # Semantic check on block
-            analyzer = SemanticAnalyzer(source_block)
+            # Semantic check on block with persistent analyzer
+            analyzer.source = source_block
             analyzer.analyze(ast)
 
             # Optimize

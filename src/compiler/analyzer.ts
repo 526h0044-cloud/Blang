@@ -126,6 +126,14 @@ export class SemanticAnalyzer {
       'upper', 'lower', 'trim', 'replace', 'split', 'join', 'contains',
       // Standard Library: List & Aggregation
       'sum', 'min_val', 'max_val', 'avg', 'reverse',
+      // Standard Library: Higher-Order Collections
+      'map', 'filter', 'reduce', 'find', 'slice', 'pop', 'push', 'keys', 'values', 'entries',
+      // Standard Library: Unicode & UTF-8 Vietnamese
+      'utf8_len', 'unicode_slice', 'char_at', 'normalize_vn', 'is_alpha_vn',
+      // Standard Library: JSON & Virtual File I/O
+      'json_parse', 'json_stringify', 'file_read', 'file_write', 'file_exists',
+      // Standard Library: Python & Native Interop FFI
+      'py_import', 'py_eval',
       // Standard Library: System & Time
       'time_now',
       // Random Generator
@@ -355,6 +363,27 @@ export class SemanticAnalyzer {
       case 'Import':
         break;
 
+      case 'TryCatch': {
+        const tc = node as any;
+        this.enterScope('try_block');
+        for (const s of tc.tryBlock.statements) this.visitStatement(s);
+        this.exitScope();
+
+        const catchScope = this.enterScope('catch_block');
+        if (tc.errorVar) {
+          catchScope.define({ name: tc.errorVar, type: 'string', line: tc.line, col: tc.col });
+        }
+        for (const s of tc.catchBlock.statements) this.visitStatement(s);
+        this.exitScope();
+        break;
+      }
+
+      case 'Throw': {
+        const th = node as any;
+        this.inferType(th.expression);
+        break;
+      }
+
       case 'Block': {
         const b = node as BlockNode;
         this.enterScope('block');
@@ -452,6 +481,7 @@ export class SemanticAnalyzer {
 
         if (['==', '!=', '<', '<=', '>', '>='].includes(op)) return 'boolean';
         if (['and', 'or'].includes(op)) return 'boolean';
+        if (op === '??') return tLeft !== 'null' && tLeft !== 'unknown' ? tLeft : tRight;
         return 'any';
       }
 

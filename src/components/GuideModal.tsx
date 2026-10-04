@@ -26,10 +26,18 @@ import {
   Bookmark,
   ExternalLink,
   Activity,
+  Table,
+  FileJson,
+  Globe2,
+  Binary,
+  Sliders,
+  ShieldAlert,
+  Wrench,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { highlightBLang } from '../compiler/blangPrism';
 import { DownloadSdkModal } from './DownloadSdkModal';
+import { TechnicalMatrixView } from './TechnicalMatrixView';
 
 interface CodeSnippetProps {
   code: string;
@@ -111,6 +119,7 @@ export const GuideModal: React.FC<GuideModalProps> = ({ onLoadSnippet, onClose }
   const [isDownloadOpen, setIsDownloadOpen] = useState<boolean>(false);
 
   const navigationSections = [
+    { id: 'tech-matrix', name: '⭐ Bảng Đối Chiếu Kỹ Thuật', icon: Table },
     { id: 'overview', name: '1. Triết Lý & Tổng Quan', icon: BookOpen },
     { id: 'setup', name: '2. Cài Đặt & setup_blang.py', icon: Download },
     { id: 'cli', name: '3. Tra Cứu Lệnh BLang CLI', icon: Terminal },
@@ -121,7 +130,15 @@ export const GuideModal: React.FC<GuideModalProps> = ({ onLoadSnippet, onClose }
     { id: 'functions', name: '8. Hàm & Phạm Vi (Functions)', icon: Cpu },
     { id: 'geometry', name: '9. Thư Viện Hình Học & Lượng Giác', icon: Compass },
     { id: 'collections', name: '10. Danh Sách & Từ Điển (Maps)', icon: FolderOpen },
-    { id: 'best-practices', name: '11. Thực Tiễn Tốt Nhất (Best Practices)', icon: CheckCircle2 },
+    { id: 'bvm-slots', name: '11. Fast Slot & Bytecode VM (BVM)', icon: Binary },
+    { id: 'ffi-interop', name: '12. FFI & Tương Thích Python / JS', icon: Globe2 },
+    { id: 'pkg-system', name: '13. Import Phân Cấp & Package', icon: Package },
+    { id: 'collections-adv', name: '14. Thao Tác Mảng & Functional API', icon: Sliders },
+    { id: 'unicode-vn', name: '15. Chuỗi Unicode & Tiếng Việt Chuẩn', icon: FileCode },
+    { id: 'json-fileio', name: '16. Xử Lý JSON & File I/O', icon: FileJson },
+    { id: 'try-catch', name: '17. Bắt Lỗi Runtime (Try - Catch)', icon: ShieldAlert },
+    { id: 'lsp-linter', name: '18. LSP, Multi-error & Linter', icon: Wrench },
+    { id: 'best-practices', name: '19. Thực Tiễn Tốt Nhất (Best Practices)', icon: CheckCircle2 },
   ];
 
   const filteredSections = useMemo(() => {
@@ -219,6 +236,11 @@ export const GuideModal: React.FC<GuideModalProps> = ({ onLoadSnippet, onClose }
             hệ thống kiểu động tự nhiên, tích hợp sẵn công cụ tối ưu Constant Folding và chuyển dịch hai đích sang Python 3.x và JavaScript ES6+.
           </p>
         </div>
+
+        {/* Section 0: Technical Comparison Matrix */}
+        <section id="doc-section-tech-matrix" className="space-y-4">
+          <TechnicalMatrixView />
+        </section>
 
         {/* Section 1: Overview & Philosophy */}
         <section id="doc-section-overview" className="space-y-4">
@@ -627,11 +649,315 @@ Cổng bảo mật mặc định: 443"
           />
         </section>
 
-        {/* Section 11: Best Practices */}
+        {/* Section 11: Fast Slot Lookup & BVM */}
+        <section id="doc-section-bvm-slots" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Binary className="w-4 h-4 text-pink-400" />
+            <span>Chương 11</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Định Vị Biến Bằng Index (Fast Variable Slot Lookup) &amp; Máy Ảo Bytecode BVM
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            Nhằm khắc phục triệt để điểm nghẽn hiệu năng của mô hình <em>Tree-Walk Interpreter</em> (phải tra cứu chuỗi bảng băm Hash Map ở từng dòng lệnh),
+            BLang v2.0 trang bị <strong>Fast Variable Slot Lookup</strong> cùng <strong>Stack-Based Bytecode Virtual Machine (BVM)</strong>.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span className="font-bold text-pink-300 text-xs block mb-1">O(1) Indexed Flat Vector</span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Tất cả biến cục bộ (@a, @sum, $msg) được trình biên dịch gán trước vào mảng chỉ mục cố định (ví dụ: Slot [00], Slot [01]).
+                Thời gian truy xuất và ghi nhớ là O(1) trực tiếp vào thanh nhớ RAM.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span className="font-bold text-pink-300 text-xs block mb-1">BVM Instruction Set Architecture</span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Các chỉ lệnh mã máy ảo như <code className="font-mono text-pink-300">LOAD_FAST [slot]</code>, <code className="font-mono text-pink-300">STORE_FAST [slot]</code>,
+                <code className="font-mono text-pink-300">BINARY_ADD</code>, <code className="font-mono text-pink-300">PRINT_VAL</code> vận hành trên ngăn xếp toán hạng (Operand Stack) siêu tốc.
+              </p>
+            </div>
+          </div>
+
+          <CodeSnippet
+            title="Thực thi trên BVM với Fast Slot Lookup"
+            code={`@x = 10;
+@y = 25;
+@total = @x * @y + 50;
+
+print("Tổng tính toán qua BVM Slots:", @total);`}
+            output="Tổng tính toán qua BVM Slots: 300"
+            onLoadSnippet={onLoadSnippet}
+          />
+        </section>
+
+        {/* Section 12: FFI & Interoperability */}
+        <section id="doc-section-ffi-interop" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Globe2 className="w-4 h-4 text-sky-400" />
+            <span>Chương 12</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            FFI (Foreign Function Interface) &amp; Tương Thích Ngoại Vi Python / JavaScript / Wasm
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            BLang hỗ trợ giao diện hàm ngoại vi <strong>FFI</strong> mạnh mẽ, cho phép mã nguồn BLang gọi trực tiếp các module tính toán C/C++, thư viện AI/Machine Learning trong Python,
+            hoặc API DOM/Canvas trong JavaScript trên trình duyệt.
+          </p>
+
+          <CodeSnippet
+            title="Sử dụng FFI và nhúng mã ngoại vi"
+            code={`// Gọi trực tiếp hàm native math.hypot của Python qua FFI
+@c = ffi_call("math", "hypot", 3, 4);
+print("Độ dài cạnh huyền (Python FFI math.hypot):", @c);
+
+// Đánh giá biểu thức Python trực tiếp
+$py_res = py_eval("'BLang Engine'.upper()");
+print("Python Eval Result:", $py_res);
+
+// Thực thi mã JavaScript an toàn trên môi trường Web Studio
+@timestamp = js_eval("Date.now()");
+print("Timestamp từ JS Runtime:", @timestamp);`}
+            output="Độ dài cạnh huyền (Python FFI math.hypot): 5.0
+Python Eval Result: BLANG ENGINE
+Timestamp từ JS Runtime: 1728045600000"
+            onLoadSnippet={onLoadSnippet}
+          />
+        </section>
+
+        {/* Section 13: Hierarchical Package Resolution */}
+        <section id="doc-section-pkg-system" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Package className="w-4 h-4 text-amber-400" />
+            <span>Chương 13</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Cú Pháp Import Phân Cấp &amp; Package Resolution
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            Hệ thống giải quyết module của BLang hỗ trợ cả 3 dạng nạp:
+          </p>
+          <ul className="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><code className="font-mono text-amber-300">import "math_lib.bl";</code>: Nạp module tại cùng thư mục hiện tại.</li>
+            <li><code className="font-mono text-amber-300">import "geometry.shapes";</code>: Nạp module phân cấp, tự động dịch thành <code className="font-mono text-amber-300">geometry/shapes.bl</code>.</li>
+            <li><code className="font-mono text-amber-300">import "std:math";</code>: Nạp chuẩn không gian tên tiêu chuẩn của hệ sinh thái BLang.</li>
+          </ul>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            BLang tích hợp bộ đệm kiểm tra chu kỳ (<code className="font-mono text-indigo-300">imported_modules</code> Set),
+            tự động bỏ qua việc nạp lại nếu một file đã được import trước đó, ngăn chặn hoàn toàn lỗi lặp vô hạn (Circular Import).
+          </p>
+        </section>
+
+        {/* Section 14: Advanced Collections */}
+        <section id="doc-section-collections-adv" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Sliders className="w-4 h-4 text-emerald-400" />
+            <span>Chương 14</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Thao Tác Mảng &amp; Functional Collections Cấp Cao (map, filter, reduce, find...)
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            Thư viện chuẩn BLang cung cấp trọn vẹn bộ công cụ lập trình hàm (Functional Programming) xử lý mảng và tập hợp dữ liệu:
+          </p>
+
+          <CodeSnippet
+            title="Xử lý danh sách bằng Functional API"
+            code={`@scores = [85, 92, 45, 78, 60, 95, 30];
+
+// 1. Lọc các điểm đạt yêu cầu (>= 50)
+function is_passed(@item, @idx) {
+    return @item >= 50;
+}
+@passed_scores = filter(@scores, is_passed);
+print("Các điểm số đạt:", @passed_scores);
+
+// 2. Thêm và thao tác mảng
+push(@passed_scores, 100);
+@top_score = pop(@passed_scores);
+print("Điểm vừa lấy ra khỏi mảng:", @top_score);
+
+// 3. Sắp xếp mảng tăng dần
+@sorted_scores = sort(@passed_scores);
+print("Danh sách điểm đã sắp xếp:", @sorted_scores);
+
+// 4. Cắt mảng (slice)
+@top_3 = slice(@sorted_scores, 0, 3);
+print("Top 3 điểm đầu tiên:", @top_3);`}
+            output="Các điểm số đạt: [85, 92, 78, 60, 95]
+Điểm vừa lấy ra khỏi mảng: 100
+Danh sách điểm đã sắp xếp: [60, 78, 85, 92, 95]
+Top 3 điểm đầu tiên: [60, 78, 85]"
+            onLoadSnippet={onLoadSnippet}
+          />
+        </section>
+
+        {/* Section 15: Vietnamese & Unicode */}
+        <section id="doc-section-unicode-vn" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <FileCode className="w-4 h-4 text-indigo-400" />
+            <span>Chương 15</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Xử Lý Chuỗi Unicode &amp; Tiếng Việt Bản Địa
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            BLang là một trong những ngôn ngữ hiếm hoi tích hợp sẵn xử lý tiếng Việt bản địa ngay trong tầng Core của runtime:
+          </p>
+
+          <CodeSnippet
+            title="Xử lý tiếng Việt và chuẩn hóa Unicode"
+            code={`$ho_ten = "Nguyễn Văn Ánh";
+
+// 1. Đếm độ dài chính xác theo Code Point (không bị nhân đôi byte)
+print("Số ký tự UTF-8 chính xác:", utf8_len($ho_ten));
+
+// 2. Chuyển đổi bỏ dấu tiếng Việt chuẩn học
+$slug = vietnamese_remove_accents($ho_ten);
+print("Tên không dấu chuẩn:", $slug);
+
+// 3. Khóa phân loại âm học tiếng Việt (Collation Key)
+$sort_key = vietnamese_sort_key($ho_ten);
+print("Khóa sắp xếp tiếng Việt:", $sort_key);
+
+// 4. Lấy ký tự tại vị trí
+print("Ký tự đầu tiên:", str_char_at($ho_ten, 0));`}
+            output="Số ký tự UTF-8 chính xác: 14
+Tên không dấu chuẩn: Nguyen Van Anh
+Khóa sắp xếp tiếng Việt: nguyen van anh
+Ký tự đầu tiên: N"
+            onLoadSnippet={onLoadSnippet}
+          />
+        </section>
+
+        {/* Section 16: JSON & File I/O */}
+        <section id="doc-section-json-fileio" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <FileJson className="w-4 h-4 text-cyan-400" />
+            <span>Chương 16</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Xử Lý JSON &amp; Quản Lý Tệp Tin (File I/O)
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            BLang cung cấp các hàm tương tác định dạng JSON và tệp tin thống nhất:
+          </p>
+
+          <CodeSnippet
+            title="Đọc ghi tệp tin và xử lý JSON"
+            code={`$user_profile = {
+    "username": "blang_developer",
+    "level": "Senior",
+    "verified": true,
+    "skills": ["Compiler", "Bytecode", "Transpiler"]
+};
+
+// 1. Mã hóa cấu trúc thành chuỗi JSON
+$json_text = json_stringify($user_profile, 2);
+print("JSON Output:\n", $json_text);
+
+// 2. Lưu vào tệp tin (hoạt động đồng nhất trên cả CLI & Web Studio)
+write_file("profile.json", $json_text);
+
+// 3. Kiểm tra và đọc lại từ tệp tin
+if (file_exists("profile.json")) {
+    $content = read_file("profile.json");
+    $loaded_obj = json_parse($content);
+    print("Đọc thành công user:", $loaded_obj["username"]);
+}`}
+            output="JSON Output:
+{
+  &quot;username&quot;: &quot;blang_developer&quot;,
+  &quot;level&quot;: &quot;Senior&quot;,
+  &quot;verified&quot;: true,
+  &quot;skills&quot;: [
+    &quot;Compiler&quot;,
+    &quot;Bytecode&quot;,
+    &quot;Transpiler&quot;
+  ]
+}
+Đọc thành công user: blang_developer"
+            onLoadSnippet={onLoadSnippet}
+          />
+        </section>
+
+        {/* Section 17: Try-Catch-Throw */}
+        <section id="doc-section-try-catch" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <ShieldAlert className="w-4 h-4 text-rose-400" />
+            <span>Chương 17</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Cơ Chế Bắt Lỗi Tại Runtime (Try - Catch - Throw)
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            Ngăn chặn crash ứng dụng đột ngột bằng cấu trúc ngoặc nhọn an toàn <code className="font-mono text-rose-300">try {'{ ... }'} catch (err) {'{ ... }'}</code> và từ khóa ném lỗi <code className="font-mono text-rose-300">throw</code>.
+          </p>
+
+          <CodeSnippet
+            title="Bắt lỗi runtime và ném ngoại lệ chủ động"
+            code={`function safe_divide(@a, @b) {
+    if (@b == 0) {
+        throw "Không thể chia cho số 0!";
+    }
+    return @a / @b;
+}
+
+try {
+    @result = safe_divide(100, 0);
+    print("Kết quả:", @result);
+} catch ($err) {
+    print("Đã bắt ngoại lệ an toàn:", $err);
+}
+
+print("Chương trình tiếp tục thực thi bình thường mà không bị crash.");`}
+            output="Đã bắt ngoại lệ an toàn: Không thể chia cho số 0!
+Chương trình tiếp tục thực thi bình thường mà không bị crash."
+            onLoadSnippet={onLoadSnippet}
+          />
+        </section>
+
+        {/* Section 18: LSP & DevTooling */}
+        <section id="doc-section-lsp-linter" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Wrench className="w-4 h-4 text-purple-400" />
+            <span>Chương 18</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">
+            Language Server Protocol (LSP), Multi-error Diagnostics &amp; Linter/Formatter
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            BLang trang bị hệ thống công cụ hỗ trợ nhà phát triển (Developer Experience) đạt tiêu chuẩn công nghiệp:
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span className="font-bold text-purple-300 text-xs block mb-1">Parser Multi-error Recovery</span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Đồng bộ hóa tại ranh giới câu lệnh (;, {'}'}) để tiếp tục phân tích toàn bộ file mã nguồn, cung cấp danh sách đa lỗi chẩn đoán chính xác thay vì ngắt đột ngột.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span className="font-bold text-purple-300 text-xs block mb-1">Language Server (LSP)</span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Cung cấp Autocomplete ngữ cảnh, Hover docstring, Document Symbol tree, và Real-time Diagnostics tích hợp sẵn trong <code className="font-mono text-purple-300">BLangLSPService</code>.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span className="font-bold text-purple-300 text-xs block mb-1">AST Linter &amp; Formatter</span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Tự động kiểm tra quy tắc mã sạch: biến không sử dụng (no-unused-vars), gợi ý tiền tố (@ số, $ chuỗi), mã không thể chạm tới, kèm công cụ tự động căn lề 4-spaces.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 19: Best Practices */}
         <section id="doc-section-best-practices" className="space-y-4 pt-6 border-t border-slate-800/80 pb-12">
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Chương 11</span>
+            <span>Chương 19</span>
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-white">Thực Tiễn Tốt Nhất (Best Practices &amp; Idiomatic BLang)</h2>
           <p className="text-sm text-slate-300 leading-relaxed">

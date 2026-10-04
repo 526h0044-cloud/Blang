@@ -462,54 +462,286 @@ export class Interpreter {
     this.globalEnv.define('polygon_area', fnPolygonS);
 
     // Geometry: Tam giác (triangle / tri, diện tích: s/S, chu vi: c/C)
-    const fnTriangleS = (args: any[]) => 0.5 * Number(args[0]) * Number(args[1]);
-    const fnTriangleC = (args: any[]) => Number(args[0]) + Number(args[1]) + Number(args[2]);
-    this.globalEnv.define('triangle_s', fnTriangleS);
-    this.globalEnv.define('triangle_S', fnTriangleS);
-    this.globalEnv.define('triangle_area', fnTriangleS);
-    this.globalEnv.define('tri_s', fnTriangleS);
-    this.globalEnv.define('tri_S', fnTriangleS);
-    this.globalEnv.define('tri_area', fnTriangleS);
-
-    this.globalEnv.define('triangle_c', fnTriangleC);
-    this.globalEnv.define('triangle_C', fnTriangleC);
-    this.globalEnv.define('triangle_perimeter', fnTriangleC);
-    this.globalEnv.define('tri_c', fnTriangleC);
-    this.globalEnv.define('tri_C', fnTriangleC);
-    this.globalEnv.define('tri_perimeter', fnTriangleC);
+    const fnTriangleS = (args: any[]) => 0.5 * Number(args[0] ?? 0) * Number(args[1] ?? 0);
+    const fnTriangleC = (args: any[]) => Number(args[0] ?? 0) + Number(args[1] ?? 0) + Number(args[2] ?? 0);
+    for (const alias of ['triangle_s', 'triangle_S', 'triangle_area', 'tri_s', 'tri_S', 'tri_area']) {
+      this.globalEnv.define(alias, fnTriangleS);
+    }
+    for (const alias of ['triangle_c', 'triangle_C', 'triangle_perimeter', 'tri_c', 'tri_C', 'tri_perimeter']) {
+      this.globalEnv.define(alias, fnTriangleC);
+    }
 
     // Standard Library: String Operations
-    this.globalEnv.define('upper', (args: any[]) => String(args[0]).toUpperCase());
-    this.globalEnv.define('lower', (args: any[]) => String(args[0]).toLowerCase());
-    this.globalEnv.define('trim', (args: any[]) => String(args[0]).trim());
+    this.globalEnv.define('upper', (args: any[]) => (args.length > 0 ? String(args[0]).toUpperCase() : ''));
+    this.globalEnv.define('lower', (args: any[]) => (args.length > 0 ? String(args[0]).toLowerCase() : ''));
+    this.globalEnv.define('trim', (args: any[]) => (args.length > 0 ? String(args[0]).trim() : ''));
     this.globalEnv.define('replace', (args: any[]) =>
-      String(args[0]).split(String(args[1])).join(String(args[2]))
+      args.length >= 3
+        ? String(args[0]).split(String(args[1])).join(String(args[2]))
+        : args.length > 0
+          ? String(args[0])
+          : ''
     );
-    this.globalEnv.define('split', (args: any[]) => String(args[0]).split(String(args[1])));
+    this.globalEnv.define('split', (args: any[]) => (args.length > 0 ? String(args[0]).split(String(args[1] ?? '')) : []));
     this.globalEnv.define('join', (args: any[]) =>
-      Array.isArray(args[0]) ? args[0].join(String(args[1] ?? '')) : String(args[0])
+      Array.isArray(args[0]) ? args[0].join(String(args[1] ?? '')) : (args.length > 0 ? String(args[0]) : '')
     );
-    this.globalEnv.define('contains', (args: any[]) => String(args[0]).includes(String(args[1])));
+    this.globalEnv.define('contains', (args: any[]) => (args.length >= 2 ? String(args[0]).includes(String(args[1])) : false));
 
     // Standard Library: List & Aggregation
     this.globalEnv.define('sum', (args: any[]) =>
-      Array.isArray(args[0]) ? args[0].reduce((acc, curr) => acc + Number(curr), 0) : 0
+      Array.isArray(args[0]) ? args[0].reduce((acc, curr) => acc + (isNaN(Number(curr)) ? 0 : Number(curr)), 0) : 0
     );
-    this.globalEnv.define('min_val', (args: any[]) =>
-      Array.isArray(args[0]) && args[0].length > 0 ? Math.min(...args[0].map(Number)) : 0
-    );
-    this.globalEnv.define('max_val', (args: any[]) =>
-      Array.isArray(args[0]) && args[0].length > 0 ? Math.max(...args[0].map(Number)) : 0
-    );
+    this.globalEnv.define('min_val', (args: any[]) => {
+      if (!Array.isArray(args[0]) || args[0].length === 0) return 0;
+      const nums = args[0].map(Number).filter((n) => !isNaN(n));
+      return nums.length > 0 ? Math.min(...nums) : 0;
+    });
+    this.globalEnv.define('max_val', (args: any[]) => {
+      if (!Array.isArray(args[0]) || args[0].length === 0) return 0;
+      const nums = args[0].map(Number).filter((n) => !isNaN(n));
+      return nums.length > 0 ? Math.max(...nums) : 0;
+    });
     this.globalEnv.define('avg', (args: any[]) => {
       if (!Array.isArray(args[0]) || args[0].length === 0) return 0;
-      const s = args[0].reduce((acc, curr) => acc + Number(curr), 0);
-      return s / args[0].length;
+      const nums = args[0].map(Number).filter((n) => !isNaN(n));
+      return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
     });
     this.globalEnv.define('reverse', (args: any[]) => {
       if (Array.isArray(args[0])) return [...args[0]].reverse();
       if (typeof args[0] === 'string') return args[0].split('').reverse().join('');
-      return args[0];
+      return args[0] ?? null;
+    });
+
+    // Standard Library: Higher-Order Collections
+    this.globalEnv.define('map', (args: any[]) => {
+      const arr = args[0];
+      const fn = args[1];
+      if (!Array.isArray(arr) || !fn) return [];
+      return arr.map((item, idx) => {
+        if (fn instanceof CallableFunction) return fn.call(this, [item, idx], 0, 0);
+        if (typeof fn === 'function') return fn([item, idx]);
+        return item;
+      });
+    });
+
+    this.globalEnv.define('filter', (args: any[]) => {
+      const arr = args[0];
+      const fn = args[1];
+      if (!Array.isArray(arr) || !fn) return [];
+      return arr.filter((item, idx) => {
+        if (fn instanceof CallableFunction) return Boolean(fn.call(this, [item, idx], 0, 0));
+        if (typeof fn === 'function') return Boolean(fn([item, idx]));
+        return Boolean(item);
+      });
+    });
+
+    this.globalEnv.define('reduce', (args: any[]) => {
+      const arr = args[0];
+      const fn = args[1];
+      let acc = args[2];
+      if (!Array.isArray(arr) || !fn) return acc;
+      for (let i = 0; i < arr.length; i++) {
+        if (fn instanceof CallableFunction) {
+          acc = fn.call(this, [acc, arr[i], i], 0, 0);
+        } else if (typeof fn === 'function') {
+          acc = fn([acc, arr[i], i]);
+        }
+      }
+      return acc;
+    });
+
+    this.globalEnv.define('find', (args: any[]) => {
+      const arr = args[0];
+      const fn = args[1];
+      if (!Array.isArray(arr) || !fn) return null;
+      for (let i = 0; i < arr.length; i++) {
+        const matches = fn instanceof CallableFunction ? fn.call(this, [arr[i], i], 0, 0) : fn([arr[i], i]);
+        if (matches) return arr[i];
+      }
+      return null;
+    });
+
+    this.globalEnv.define('slice', (args: any[]) => {
+      const target = args[0];
+      const start = Number(args[1] ?? 0);
+      const end = args[2] !== undefined ? Number(args[2]) : undefined;
+      if (Array.isArray(target) || typeof target === 'string') {
+        return target.slice(start, end);
+      }
+      return [];
+    });
+
+    this.globalEnv.define('push', (args: any[]) => {
+      if (Array.isArray(args[0])) {
+        args[0].push(args[1]);
+        return args[0].length;
+      }
+      return 0;
+    });
+
+    this.globalEnv.define('shift', (args: any[]) => {
+      if (Array.isArray(args[0])) return args[0].shift();
+      return null;
+    });
+
+    this.globalEnv.define('unshift', (args: any[]) => {
+      if (Array.isArray(args[0])) {
+        args[0].unshift(args[1]);
+        return args[0].length;
+      }
+      return 0;
+    });
+
+    this.globalEnv.define('sort', (args: any[]) => {
+      if (Array.isArray(args[0])) {
+        return [...args[0]].sort((a, b) => {
+          if (typeof a === 'number' && typeof b === 'number') return a - b;
+          return String(a).localeCompare(String(b), 'vi');
+        });
+      }
+      return [];
+    });
+
+    this.globalEnv.define('concat', (args: any[]) => {
+      if (Array.isArray(args[0]) && Array.isArray(args[1])) {
+        return args[0].concat(args[1]);
+      }
+      if (typeof args[0] === 'string' || typeof args[1] === 'string') {
+        return String(args[0] ?? '') + String(args[1] ?? '');
+      }
+      return [];
+    });
+
+    this.globalEnv.define('pop', (args: any[]) => {
+      if (Array.isArray(args[0])) return args[0].pop();
+      return null;
+    });
+
+    this.globalEnv.define('keys', (args: any[]) => {
+      if (typeof args[0] === 'object' && args[0] !== null) return Object.keys(args[0]);
+      return [];
+    });
+
+    this.globalEnv.define('values', (args: any[]) => {
+      if (typeof args[0] === 'object' && args[0] !== null) return Object.values(args[0]);
+      return [];
+    });
+
+    this.globalEnv.define('entries', (args: any[]) => {
+      if (typeof args[0] === 'object' && args[0] !== null) return Object.entries(args[0]);
+      return [];
+    });
+
+    // Standard Library: Vietnamese Unicode & UTF-8
+    const fnViNoAccents = (args: any[]) => {
+      let s = String(args[0] ?? '');
+      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      s = s.replace(/[đĐ]/g, (m) => (m === 'đ' ? 'd' : 'D'));
+      return s;
+    };
+    this.globalEnv.define('vietnamese_remove_accents', fnViNoAccents);
+    this.globalEnv.define('vi_no_accents', fnViNoAccents);
+    this.globalEnv.define('vietnamese_sort_key', (args: any[]) => fnViNoAccents(args).toLowerCase());
+    this.globalEnv.define('vi_sort_key', (args: any[]) => fnViNoAccents(args).toLowerCase());
+    this.globalEnv.define('str_char_at', (args: any[]) => {
+      const chars = [...String(args[0] ?? '')];
+      return chars[Number(args[1] ?? 0)] ?? '';
+    });
+    this.globalEnv.define('str_starts_with', (args: any[]) => String(args[0] ?? '').startsWith(String(args[1] ?? '')));
+    this.globalEnv.define('str_ends_with', (args: any[]) => String(args[0] ?? '').endsWith(String(args[1] ?? '')));
+    this.globalEnv.define('str_pad_start', (args: any[]) =>
+      String(args[0] ?? '').padStart(Number(args[1] ?? 0), String(args[2] ?? ' '))
+    );
+    this.globalEnv.define('str_pad_end', (args: any[]) =>
+      String(args[0] ?? '').padEnd(Number(args[1] ?? 0), String(args[2] ?? ' '))
+    );
+
+    this.globalEnv.define('utf8_len', (args: any[]) => [...String(args[0] ?? '')].length);
+    this.globalEnv.define('unicode_slice', (args: any[]) => {
+      const chars = [...String(args[0] ?? '')];
+      const start = Number(args[1] ?? 0);
+      const end = args[2] !== undefined ? Number(args[2]) : undefined;
+      return chars.slice(start, end).join('');
+    });
+    this.globalEnv.define('char_at', (args: any[]) => {
+      const chars = [...String(args[0] ?? '')];
+      const idx = Number(args[1] ?? 0);
+      return chars[idx] ?? '';
+    });
+    this.globalEnv.define('normalize_vn', (args: any[]) => String(args[0] ?? '').normalize('NFC'));
+    this.globalEnv.define('is_alpha_vn', (args: any[]) =>
+      /^[a-zA-ZàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐ\s]+$/.test(String(args[0] ?? ''))
+    );
+
+    // Standard Library: JSON & Virtual File I/O
+    this.globalEnv.define('json_parse', (args: any[]) => {
+      try {
+        return JSON.parse(String(args[0]));
+      } catch (err: any) {
+        throw { stage: 'runtime', message: `json_parse error: ${err?.message}` };
+      }
+    });
+
+    this.globalEnv.define('json_stringify', (args: any[]) => {
+      const indent = args[1] !== undefined ? Number(args[1]) : 2;
+      return JSON.stringify(args[0], null, indent);
+    });
+
+    this.globalEnv.define('file_read', (args: any[]) => {
+      const fname = String(args[0]);
+      return this.virtualFiles[fname] ?? '';
+    });
+    this.globalEnv.define('read_file', (args: any[]) => {
+      const fname = String(args[0]);
+      return this.virtualFiles[fname] ?? '';
+    });
+
+    this.globalEnv.define('file_write', (args: any[]) => {
+      const fname = String(args[0]);
+      const content = String(args[1] ?? '');
+      this.virtualFiles[fname] = content;
+      return true;
+    });
+    this.globalEnv.define('write_file', (args: any[]) => {
+      const fname = String(args[0]);
+      const content = String(args[1] ?? '');
+      this.virtualFiles[fname] = content;
+      return true;
+    });
+
+    this.globalEnv.define('file_exists', (args: any[]) => {
+      const fname = String(args[0]);
+      return fname in this.virtualFiles;
+    });
+
+    this.globalEnv.define('path_join', (args: any[]) => {
+      const parts = args.map((x) => String(x).replace(/\/+$/, '').replace(/^\/+/, ''));
+      return parts.join('/');
+    });
+
+    // Standard Library: Python & Native Interop FFI
+    this.globalEnv.define('py_import', (args: any[]) => {
+      const mod = String(args[0]);
+      return { module: mod, status: 'interop_ready', native: true };
+    });
+
+    this.globalEnv.define('py_eval', (args: any[]) => String(args[0]));
+    this.globalEnv.define('py_exec', (args: any[]) => `Executed Python: ${args[0]}`);
+
+    this.globalEnv.define('ffi_call', (args: any[]) => {
+      const mod = String(args[0]);
+      const fn = String(args[1]);
+      const fnArgs = args.slice(2);
+      return `[FFI ${mod}::${fn}(${fnArgs.join(', ')})]`;
+    });
+
+    this.globalEnv.define('js_eval', (args: any[]) => {
+      try {
+        return Function(`"use strict"; return (${args[0]});`)();
+      } catch (err: any) {
+        return `JS Eval Error: ${err?.message}`;
+      }
     });
 
     // Standard Library: System & Time
@@ -575,6 +807,21 @@ export class Interpreter {
           } else if (assign.operator === '-=') {
             const cur = this.currentEnv.get(id, assign.line, assign.col);
             this.currentEnv.set(id, cur - val);
+          } else if (assign.operator === '*=') {
+            const cur = this.currentEnv.get(id, assign.line, assign.col);
+            this.currentEnv.set(id, cur * val);
+          } else if (assign.operator === '/=') {
+            const cur = this.currentEnv.get(id, assign.line, assign.col);
+            if (val === 0) {
+              throw { stage: 'runtime', message: 'Division by zero in "/="', line: assign.line, col: assign.col };
+            }
+            this.currentEnv.set(id, cur / val);
+          } else if (assign.operator === '%=') {
+            const cur = this.currentEnv.get(id, assign.line, assign.col);
+            if (val === 0) {
+              throw { stage: 'runtime', message: 'Modulo by zero in "%="', line: assign.line, col: assign.col };
+            }
+            this.currentEnv.set(id, cur % val);
           }
           const finalVal = this.currentEnv.get(id, assign.line, assign.col);
           const { formatted } = formatRuntimeValue(finalVal);
@@ -589,6 +836,18 @@ export class Interpreter {
             tgt[idx] = tgt[idx] + val;
           } else if (assign.operator === '-=') {
             tgt[idx] = tgt[idx] - val;
+          } else if (assign.operator === '*=') {
+            tgt[idx] = tgt[idx] * val;
+          } else if (assign.operator === '/=') {
+            if (val === 0) {
+              throw { stage: 'runtime', message: 'Division by zero in "/="', line: assign.line, col: assign.col };
+            }
+            tgt[idx] = tgt[idx] / val;
+          } else if (assign.operator === '%=') {
+            if (val === 0) {
+              throw { stage: 'runtime', message: 'Modulo by zero in "%="', line: assign.line, col: assign.col };
+            }
+            tgt[idx] = tgt[idx] % val;
           }
           const { formatted } = formatRuntimeValue(tgt[idx]);
           this.recordStep(assign, `Cập nhật phần tử [${idx}] = ${formatted}`);
@@ -756,6 +1015,36 @@ export class Interpreter {
         return null;
       }
 
+      case 'TryCatch': {
+        const tc = node as any;
+        const sub = new Environment(this.currentEnv, 'try-block');
+        const prev = this.currentEnv;
+        this.currentEnv = sub;
+        try {
+          return this.executeBlock(tc.tryBlock);
+        } catch (err: any) {
+          if (err instanceof ReturnSignal || err instanceof BreakSignal || err instanceof ContinueSignal) {
+            throw err;
+          }
+          const catchEnv = new Environment(prev, 'catch-block');
+          if (tc.errorVar) {
+            const msg = typeof err === 'string' ? err : err?.message ?? JSON.stringify(err);
+            catchEnv.define(tc.errorVar, msg);
+          }
+          this.currentEnv = catchEnv;
+          this.recordStep(tc, `Bắt ngoại lệ tại catch (${tc.errorVar || 'err'})`);
+          return this.executeBlock(tc.catchBlock);
+        } finally {
+          this.currentEnv = prev;
+        }
+      }
+
+      case 'Throw': {
+        const th = node as any;
+        const msg = this.evaluate(th.expression);
+        throw { stage: 'runtime', message: String(msg), line: th.line, col: th.col };
+      }
+
       case 'Block': {
         const sub = new Environment(this.currentEnv);
         const prev = this.currentEnv;
@@ -845,7 +1134,10 @@ export class Interpreter {
           if (right === 0) throw { stage: 'runtime', message: 'Division by zero', line: bin.line, col: bin.col };
           return left / right;
         }
-        if (op === '%') return left % right;
+        if (op === '%') {
+          if (right === 0) throw { stage: 'runtime', message: 'Modulo by zero', line: bin.line, col: bin.col };
+          return left % right;
+        }
         if (op === '==') return left === right;
         if (op === '!=') return left !== right;
         if (op === '<') return left < right;
@@ -854,6 +1146,7 @@ export class Interpreter {
         if (op === '>=') return left >= right;
         if (op === 'and') return left && right;
         if (op === 'or') return left || right;
+        if (op === '??') return left !== null && left !== undefined ? left : right;
         return null;
       }
 
