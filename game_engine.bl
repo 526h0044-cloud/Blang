@@ -1,0 +1,46 @@
+// ==============================================================================
+// BLang Game Simulation Module (game_engine.bl)
+// Clean Variable Declaration Syntax: biến = giá trị (KHÔNG CẦN let)
+// ==============================================================================
+
+@hero = {
+    "name": "Aura Knight",
+    "hp": 250,
+    "stamina": 100,
+    "level": 12
+};
+
+@dungeon_mobs = [
+    {"name": "Shadow Wisp", "damage": 20, "exp": 50},
+    {"name": "Iron Golem", "damage": 45, "exp": 120},
+    {"name": "Rift Dragon", "damage": 80, "exp": 300}
+];
+
+function combat_round(@current_hp, $incoming_damage) {
+    _mitigation = 10;
+    _net_damage = $incoming_damage - _mitigation;
+    if (_net_damage < 0) {
+        _net_damage = 0;
+    }
+    _new_hp = @current_hp - _net_damage;
+    return _new_hp;
+}
+
+print(">>> Commencing simulation for hero:", @hero["name"]);
+_cur_hp = @hero["hp"];
+
+for (mob in @dungeon_mobs) {
+    $m_name = mob["name"];
+    @m_dmg = mob["damage"];
+    print("--- Encountering:", $m_name, "| Threat DMG:", @m_dmg);
+
+    _cur_hp = combat_round(_cur_hp, @m_dmg);
+    print(">>> Post-encounter Hero HP:", _cur_hp);
+
+    if (_cur_hp <= 0) {
+        print(">>> Critical damage! Hero fallen in battle.");
+        break;
+    }
+}
+
+print(">>> Simulation finished. Final HP remaining:", _cur_hp);

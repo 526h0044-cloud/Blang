@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# BLang: Command-Line Compiler, Transpiler & Execution Runner
+# Usage:
+#   blang <file.bl>               # Direct execution of a .bl script
+#   blang run <file.bl>           # Run .bl script with internal engine
+#   blang transpile <file.bl>     # Transpile to output.py and output.js
+#   blang repl                    # Launch the interactive BLang REPL shell
+#   blang test                    # Run self-diagnostic compiler test suite
+# ==============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ "$#" -eq 0 ]; then
+    python3 "$SCRIPT_DIR/compiler.py" repl
+    exit $?
+fi
+
+# If first arg is a .bl file directly:
+if [[ "$1" == *.bl ]] && [ "$#" -eq 1 ]; then
+    python3 "$SCRIPT_DIR/compiler.py" run "$1"
+    exit $?
+fi
+
+python3 "$SCRIPT_DIR/compiler.py" "$@"

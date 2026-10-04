@@ -1,0 +1,97 @@
+// ==============================================================================
+// BLang Scientific Math & Geometry Engine (geometry_math.bl)
+// Logarit, Căn bậc, Lượng giác & Chu vi, Diện tích, Thể tích hình học
+// ==============================================================================
+
+print("==================================================");
+print(">>> BLANG ADVANCED MATH & GEOMETRY CALCULATION <<<");
+print("==================================================");
+
+// 1. Phép tính Logarit & Logarit tự nhiên (ln)
+@val_e = E;
+@ln_result = ln(@val_e);
+$log10_val = log(1000);        // log cơ số 10: log10(1000) = 3
+$log2_val = log(64, 2);        // log cơ số 2: log2(64) = 6
+
+print("--- 1. LOGARITHM & EXPONENTIAL ---");
+print("ln(e)              =", @ln_result);
+print("log10(1000)        =", $log10_val);
+print("log2(64)           =", $log2_val);
+
+// 2. Căn bậc (sqrt, cbrt, root bậc n) & Lũy thừa (pow)
+@can_bac_2 = sqrt(144);        // Căn bậc 2: 12
+@can_bac_3 = cbrt(125);        // Căn bậc 3: 5
+@can_bac_4 = root(81, 4);      // Căn bậc 4 của 81: 3
+$luy_thua  = pow(2, 10);       // 2^10 = 1024
+
+print("--- 2. ROOTS & POWERS ---");
+print("sqrt(144)          =", @can_bac_2);
+print("cbrt(125)          =", @can_bac_3);
+print("root(81, 4)        =", @can_bac_4);
+print("pow(2, 10)         =", $luy_thua);
+
+// 3. Góc & Lượng giác: sin, cos, tan, cotan (Độ & Radian)
+@sin_90 = sind(90);            // sin(90 độ) = 1
+@cos_60 = cosd(60);            // cos(60 độ) = 0.5
+@tan_45 = tand(45);            // tan(45 độ) = 1
+@cot_45 = cotand(45);          // cotan(45 độ) = 1
+
+print("--- 3. TRIGONOMETRY (GÓC & LƯỢNG GIÁC) ---");
+print("sin(90 deg)        =", @sin_90);
+print("cos(60 deg)        =", @cos_60);
+print("tan(45 deg)        =", @tan_45);
+print("cotan(45 deg)      =", @cot_45);
+
+// 4. Hình tròn, Cầu, Trụ, Nón (Chu vi, Diện tích, Thể tích)
+@ban_kinh = 5;
+_chu_vi_tron = circle_perimeter(@ban_kinh);
+_dien_tich_tron = circle_area(@ban_kinh);
+_the_tich_cau = sphere_volume(3);
+_the_tich_tru = cylinder_volume(3, 10);
+_the_tich_non = cone_volume(3, 10);
+
+print("--- 4. HÌNH TRÒN, CẦU, TRỤ, NÓN ---");
+print("Chu vi hình tròn (r=5)       =", _chu_vi_tron);
+print("Diện tích hình tròn (r=5)    =", _dien_tich_tron);
+print("Thể tích hình cầu (r=3)      =", _the_tich_cau);
+print("Thể tích hình trụ (r=3, h=10)=", _the_tich_tru);
+print("Thể tích hình nón (r=3, h=10)=", _the_tich_non);
+
+// 5. Hình vuông & Lập phương
+@canh_vuong = 6;
+_chu_vi_vuong = square_perimeter(@canh_vuong);
+_dien_tich_vuong = square_area(@canh_vuong);
+_the_tich_lap_phuong = cube_volume(4);
+
+print("--- 5. HÌNH VUÔNG & LẬP PHƯƠNG ---");
+print("Chu vi hình vuông (a=6)      =", _chu_vi_vuong);
+print("Diện tích hình vuông (a=6)   =", _dien_tich_vuong);
+print("Thể tích lập phương (a=4)    =", _the_tich_lap_phuong);
+
+// 6. Hình chữ nhật & Hình hộp chữ nhật
+_chu_vi_cn = rect_perimeter(8, 5);
+_dien_tich_cn = rect_area(8, 5);
+_the_tich_hop = cuboid_volume(4, 5, 6);
+
+print("--- 6. HÌNH CHỮ NHẬT & HÌNH HỘP ---");
+print("Chu vi hình chữ nhật (8x5)   =", _chu_vi_cn);
+print("Diện tích hình chữ nhật (8x5)=", _dien_tich_cn);
+print("Thể tích hình hộp (4x5x6)    =", _the_tich_hop);
+
+// 7. Hình thang (Trapezoid) & Đa giác đều (Regular Polygon)
+_dien_tich_thang = trapezoid_area(6, 10, 4); // (đáy 1 + đáy 2) * h / 2
+_chu_vi_thang = trapezoid_perimeter(6, 10, 5, 5);
+
+// Lục giác đều (6 cạnh, mỗi cạnh dài 4)
+_chu_vi_luc_giac = polygon_perimeter(6, 4);
+_dien_tich_luc_giac = polygon_area(6, 4);
+
+print("--- 7. HÌNH THANG & ĐA GIÁC ĐỀU ---");
+print("Diện tích hình thang (6, 10, h=4)   =", _dien_tich_thang);
+print("Chu vi hình thang (6, 10, 5, 5)     =", _chu_vi_thang);
+print("Chu vi lục giác đều (n=6, s=4)      =", _chu_vi_luc_giac);
+print("Diện tích lục giác đều (n=6, s=4)   =", _dien_tich_luc_giac);
+
+print("==================================================");
+print(">>> TẤT CẢ CÁC PHÉP TÍNH TOÁN HỌC ĐÃ HOÀN THÀNH <<<");
+print("==================================================");

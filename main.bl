@@ -1,0 +1,35 @@
+// ==============================================================================
+// BLang Main Application File (main.bl)
+// Clean Variable Declaration Syntax: biến = giá trị (KHÔNG CẦN let)
+// ==============================================================================
+
+import "math_lib.bl";
+
+// 1. Khai báo biến trực tiếp (không cần let)
+@app_name = "BLang Native Application";
+$version_id = 1.0;
+_launch_ticks = 0;
+
+// 2. Định nghĩa hàm và giá trị trả về
+function initialize_system($agent_name, @rank) {
+    _greeting = "Welcome, Commander ";
+    print(">>> Initializing system for:", $agent_name, "| Clearance Level:", @rank);
+    @boost = power(2, 4); // Gọi hàm power() từ math_lib.bl
+    print(">>> Calculated Core Boost (2^4 = 16):", @boost);
+    return @boost + 100;
+}
+
+// 3. Thực thi logic
+$agent = "Kaelen Voss";
+@clearance = 5;
+$final_power = initialize_system($agent, @clearance);
+
+print(">>> System status fully calibrated! Output power level:", $final_power);
+
+// 4. Vòng lặp duyệt danh sách
+@sensors = ["Thermal Sensor", "Graviton Detector", "Quantum Radar"];
+for (sensor in @sensors) {
+    print(">>> Online sensor unit:", sensor);
+}
+
+print(">>> Application main.bl executed with 100% integrity.");

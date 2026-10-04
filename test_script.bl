@@ -1,0 +1,63 @@
+// ==============================================================================
+// BLang Comprehensive Demonstration & Test Script (test_script.bl)
+// Clean Variable Declaration Syntax: biến = giá trị (KHÔNG CẦN let)
+// ==============================================================================
+
+// 1. Khai báo biến trực tiếp (không dùng let)
+@base_score = 100;
+$player_name = "Nova Commander";
+_counter = 0;
+$is_mission_active = true;
+@hazard_level = 0;
+
+// 2. Hàm có tham số, biến cục bộ và return
+function calculate_boost(@base, $multiplier) {
+    _bonus = 25;
+    _subtotal = (@base * $multiplier);
+    return _subtotal + _bonus;
+}
+
+// 3. Mảng và Từ điển
+@inventory = ["quantum_core", "shield_matrix", "plasma_drive"];
+$ship_stats = {
+    "hull": 500,
+    "shields": 250,
+    "warp_ready": true
+};
+
+// 4. Constant Folding Demonstration: (10 * 5) + 2 -> 52
+_optimized_constant = (10 * 5) + 2;
+
+// 5. Cấu trúc điều kiện phức hợp: not, and, or
+if (not (@hazard_level > 2) and ($is_mission_active or @base_score > 50)) {
+    print(">>> System Status: GREEN. Welcome aboard,", $player_name);
+    $boosted = calculate_boost(@base_score, 2);
+    print(">>> Boosted Score Total (Expected 225):", $boosted);
+} elseif (@base_score == 0) {
+    print(">>> Critical alert: Score is zero!");
+} else {
+    print(">>> System in standby mode.");
+}
+
+// 6. Vòng lặp while với continue và break
+print("--- Starting Diagnostics Loop ---");
+while (_counter < 10) {
+    _counter += 1;
+    if (_counter == 3) {
+        continue;
+    }
+    if (_counter == 7) {
+        print(">>> Loop encountered threshold at counter:", _counter);
+        break;
+    }
+}
+
+// 7. Vòng lặp for-in
+print("--- Scanning Inventory Systems ---");
+for (item in @inventory) {
+    print(">>> Detected component:", item);
+}
+
+// 8. Kết quả Constant Folded
+print(">>> Constant folding verification (Expected 52):", _optimized_constant);
+print(">>> BLang test program completed successfully!");

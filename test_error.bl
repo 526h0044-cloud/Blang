@@ -1,0 +1,14 @@
+// ==============================================================================
+// BLang Strict Type Safety Violation Demonstration (test_error.bl)
+// Clean Variable Declaration Syntax: biến = giá trị (KHÔNG CẦN let)
+// ==============================================================================
+
+$user_title = "Commander Shepard - Level ";
+@level_number = 60;
+
+// VI PHẠM AN TOÀN KIỂU DỮ LIỆU:
+// Chuỗi (String) tuyệt đối KHÔNG ĐƯỢC PHÉP tham gia phép cộng/trừ/nhân/chia với Số (Number).
+// Trình biên dịch BLang sẽ lập tức ném ra lỗi BLangTypeError kèm số dòng và cột:
+$illegal_operation = $user_title + @level_number;
+
+print("Dòng này sẽ KHÔNG BAO GIỜ được chạy vì compiler đã chặn đứng ở Tầng 3!");
