@@ -185,13 +185,28 @@ export class SemanticAnalyzer {
         if (decl.initializer) {
           inferredType = this.inferType(decl.initializer);
         }
+        const symType = decl.typeAnnotation || inferredType;
 
         this.currentScope.define({
           name: decl.name,
-          type: inferredType,
+          type: symType,
           line: decl.line,
           col: decl.col,
         });
+        break;
+      }
+
+      case 'Destructure': {
+        const d = node as any;
+        this.inferType(d.value);
+        for (const name of d.names) {
+          this.currentScope.define({
+            name,
+            type: 'any',
+            line: d.line,
+            col: d.col,
+          });
+        }
         break;
       }
 
@@ -235,9 +250,14 @@ export class SemanticAnalyzer {
           };
         }
 
+        const paramSig = fn.paramDetails && fn.paramDetails.length > 0
+          ? fn.paramDetails.map((p) => p.name + (p.typeAnnotation ? ': ' + p.typeAnnotation : '')).join(', ')
+          : fn.parameters.join(', ');
+        const retSig = fn.returnType ? ': ' + fn.returnType : '';
+
         this.currentScope.define({
           name: fn.name,
-          type: 'function',
+          type: `(${paramSig})${retSig}`,
           line: fn.line,
           col: fn.col,
           parameters: fn.parameters,
@@ -247,17 +267,32 @@ export class SemanticAnalyzer {
         this.inFunctionDepth++;
 
         const seen = new Set<string>();
-        for (const p of fn.parameters) {
-          if (seen.has(p)) {
-            throw {
-              stage: 'semantic',
-              message: `Duplicate parameter name '${p}' in function '${fn.name}'`,
-              line: fn.line,
-              col: fn.col,
-            };
+        if (fn.paramDetails) {
+          for (const p of fn.paramDetails) {
+            if (seen.has(p.name)) {
+              throw {
+                stage: 'semantic',
+                message: `Duplicate parameter name '${p.name}' in function '${fn.name}'`,
+                line: fn.line,
+                col: fn.col,
+              };
+            }
+            seen.add(p.name);
+            fnScope.define({ name: p.name, type: p.typeAnnotation || 'any', line: fn.line, col: fn.col });
           }
-          seen.add(p);
-          fnScope.define({ name: p, type: 'any', line: fn.line, col: fn.col });
+        } else {
+          for (const p of fn.parameters) {
+            if (seen.has(p)) {
+              throw {
+                stage: 'semantic',
+                message: `Duplicate parameter name '${p}' in function '${fn.name}'`,
+                line: fn.line,
+                col: fn.col,
+              };
+            }
+            seen.add(p);
+            fnScope.define({ name: p, type: 'any', line: fn.line, col: fn.col });
+          }
         }
 
         for (const s of fn.body.statements) {
@@ -384,6 +419,23 @@ export class SemanticAnalyzer {
         break;
       }
 
+      case 'Match': {
+        const m = node as any;
+        this.inferType(m.discriminant);
+        for (const c of m.cases) {
+          this.inferType(c.pattern);
+          this.enterScope('match_case');
+          for (const s of c.body.statements) this.visitStatement(s);
+          this.exitScope();
+        }
+        if (m.defaultCase) {
+          this.enterScope('match_default');
+          for (const s of m.defaultCase.statements) this.visitStatement(s);
+          this.exitScope();
+        }
+        break;
+      }
+
       case 'Block': {
         const b = node as BlockNode;
         this.enterScope('block');
@@ -449,6 +501,28 @@ export class SemanticAnalyzer {
           return 'number';
         }
         return 'any';
+      }
+
+      case 'Range': {
+        const r = node as any;
+        this.inferType(r.start);
+        this.inferType(r.end);
+        return 'list';
+      }
+
+      case 'Pipeline': {
+        const p = node as any;
+        this.inferType(p.left);
+        this.inferType(p.target);
+        return 'any';
+      }
+
+      case 'InterpolatedString': {
+        const isNode = node as any;
+        for (const p of isNode.parts) {
+          this.inferType(p);
+        }
+        return 'string';
       }
 
       case 'BinaryOp': {

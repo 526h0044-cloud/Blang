@@ -97,6 +97,13 @@ const STANDARD_BUILTINS: Record<string, { kind: 'function' | 'keyword' | 'macro'
   file_exists: { kind: 'function', detail: 'file_exists(path: string): boolean', doc: 'Kiểm tra tệp tin có tồn tại hay không' },
   path_join: { kind: 'function', detail: 'path_join(a: string, b: string): string', doc: 'Nối đường dẫn tệp tin an toàn' },
 
+  // Modern Language Innovations
+  match: { kind: 'keyword', detail: 'match expr { case val { ... } default { ... } }', doc: 'Cấu trúc so khớp mẫu (Pattern Matching) hiện đại của BLang, thay thế switch/if-elif dài dòng.' },
+  case: { kind: 'keyword', detail: 'case pattern { ... }', doc: 'Nhánh khớp mẫu trong biểu thức match.' },
+  default: { kind: 'keyword', detail: 'default { ... }', doc: 'Nhánh mặc định dự phòng khi không có case nào khớp.' },
+  pipeline: { kind: 'keyword', detail: 'expr |> fn(...)', doc: 'Toán tử đường ống Pipeline |> chuyển giá trị bên trái làm tham số đầu tiên của hàm tiếp theo.' },
+  range_inclusive: { kind: 'function', detail: 'start..end', doc: 'Toán tử Range .. tạo danh sách dãy số từ start đến end (ví dụ 1..5 -> [1, 2, 3, 4, 5]).' },
+
   // FFI & Interoperability
   ffi_call: { kind: 'function', detail: 'ffi_call(module: string, func: string, ...args): any', doc: 'Gọi hàm ngoại lai qua Foreign Function Interface (gọi trực tiếp hàm native Python/C)' },
   py_eval: { kind: 'function', detail: 'py_eval(expr: string): any', doc: 'Đánh giá biểu thức Python 3 trực tiếp trong môi trường chạy' },

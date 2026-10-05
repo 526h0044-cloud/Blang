@@ -793,6 +793,35 @@ export class Interpreter {
         return val;
       }
 
+      case 'Destructure': {
+        const d = node as any;
+        const rhsVal = this.evaluate(d.value);
+        if (d.kind === 'array') {
+          const arr = Array.isArray(rhsVal) ? rhsVal : [];
+          for (let i = 0; i < d.names.length; i++) {
+            const item = i < arr.length ? arr[i] : null;
+            if (d.isDeclaration) {
+              this.currentEnv.define(d.names[i], item);
+            } else {
+              this.currentEnv.set(d.names[i], item);
+            }
+          }
+          this.recordStep(d, `Phân rã mảng [${d.names.join(', ')}] = ${formatRuntimeValue(rhsVal).formatted}`);
+        } else {
+          const obj = (rhsVal && typeof rhsVal === 'object') ? rhsVal : {};
+          for (const name of d.names) {
+            const item = name in obj ? obj[name] : null;
+            if (d.isDeclaration) {
+              this.currentEnv.define(name, item);
+            } else {
+              this.currentEnv.set(name, item);
+            }
+          }
+          this.recordStep(d, `Phân rã Dict {${d.names.join(', ')}} = ${formatRuntimeValue(rhsVal).formatted}`);
+        }
+        return rhsVal;
+      }
+
       case 'Assign': {
         const assign = node as AssignNode;
         const val = this.evaluate(assign.value);
@@ -1045,6 +1074,42 @@ export class Interpreter {
         throw { stage: 'runtime', message: String(msg), line: th.line, col: th.col };
       }
 
+      case 'Match': {
+        const m = node as any;
+        const discVal = this.evaluate(m.discriminant);
+        this.recordStep(m, `Kiểm tra match (${discVal})`);
+        let matched = false;
+
+        for (const c of m.cases) {
+          const patVal = this.evaluate(c.pattern);
+          if (discVal === patVal || String(discVal) === String(patVal)) {
+            matched = true;
+            this.recordStep(c, `Khớp case (${patVal})`);
+            const sub = new Environment(this.currentEnv, 'match-case');
+            const prev = this.currentEnv;
+            this.currentEnv = sub;
+            try {
+              return this.executeBlock(c.body);
+            } finally {
+              this.currentEnv = prev;
+            }
+          }
+        }
+
+        if (!matched && m.defaultCase) {
+          this.recordStep(m.defaultCase, 'Thực thi default case');
+          const sub = new Environment(this.currentEnv, 'match-default');
+          const prev = this.currentEnv;
+          this.currentEnv = sub;
+          try {
+            return this.executeBlock(m.defaultCase);
+          } finally {
+            this.currentEnv = prev;
+          }
+        }
+        return null;
+      }
+
       case 'Block': {
         const sub = new Environment(this.currentEnv);
         const prev = this.currentEnv;
@@ -1148,6 +1213,56 @@ export class Interpreter {
         if (op === 'or') return left || right;
         if (op === '??') return left !== null && left !== undefined ? left : right;
         return null;
+      }
+
+      case 'Range': {
+        const r = node as any;
+        const start = Number(this.evaluate(r.start));
+        const end = Number(this.evaluate(r.end));
+        const res: number[] = [];
+        if (start <= end) {
+          for (let i = start; i <= end; i++) res.push(i);
+        } else {
+          for (let i = start; i >= end; i--) res.push(i);
+        }
+        return res;
+      }
+
+      case 'Pipeline': {
+        const p = node as any;
+        const left = this.evaluate(p.left);
+        if (p.target.type === 'Identifier') {
+          const fn = this.currentEnv.get(p.target.name, p.line, p.col);
+          if (fn instanceof CallableFunction) {
+            return fn.call(this, [left], p.line, p.col);
+          }
+          if (typeof fn === 'function') {
+            return fn([left]);
+          }
+          throw { stage: 'runtime', message: `'${p.target.name}' is not callable in pipeline`, line: p.line, col: p.col };
+        }
+        if (p.target.type === 'Call') {
+          const callee = this.evaluate(p.target.callee);
+          const args = [left, ...p.target.arguments.map((a: any) => this.evaluate(a))];
+          if (callee instanceof CallableFunction) {
+            return callee.call(this, args, p.line, p.col);
+          }
+          if (typeof callee === 'function') {
+            return callee(args);
+          }
+          throw { stage: 'runtime', message: 'Target in pipeline is not callable', line: p.line, col: p.col };
+        }
+        return left;
+      }
+
+      case 'InterpolatedString': {
+        const isNode = node as any;
+        let out = '';
+        for (const part of isNode.parts) {
+          const val = this.evaluate(part);
+          out += val === null ? 'null' : String(val);
+        }
+        return out;
       }
 
       default:

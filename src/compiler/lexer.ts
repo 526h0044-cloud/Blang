@@ -28,6 +28,9 @@ const KEYWORDS: Record<string, TokenType> = {
   import: 'import',
   let: 'let',
   in: 'in',
+  match: 'match',
+  case: 'case',
+  default: 'default',
   null: 'NULL',
   None: 'NULL',
   none: 'NULL',
@@ -291,6 +294,24 @@ export class Lexer {
       const line = this.line;
       const col = this.col;
 
+      // F-String literals: f"..." or f'...' or F"..." or F'...'
+      if ((code === 102 || code === 70) && this.pos + 1 < len) {
+        const nextCode = src.charCodeAt(this.pos + 1);
+        if (nextCode === 34 || nextCode === 39) {
+          this.advance(); // consume 'f' or 'F'
+          const strTok = this.readString(nextCode);
+          tokens.push({ type: 'FSTRING', value: strTok.value, line, col });
+          continue;
+        }
+      }
+
+      // Backtick template string: `...`
+      if (code === 96) {
+        const strTok = this.readString(96);
+        tokens.push({ type: 'FSTRING', value: strTok.value, line, col });
+        continue;
+      }
+
       // Identifiers / keywords: A-Z, a-z, _, @, $
       if (isAlphaCode(code)) {
         tokens.push(this.readIdentifierOrKeyword());
@@ -361,6 +382,16 @@ export class Lexer {
         if (code === 63 && nextCode === 63) { // ??
           this.pos += 2; this.col += 2;
           tokens.push({ type: '??', value: '??', line, col });
+          continue;
+        }
+        if (code === 124 && nextCode === 62) { // |> Pipeline
+          this.pos += 2; this.col += 2;
+          tokens.push({ type: '|>', value: '|>', line, col });
+          continue;
+        }
+        if (code === 46 && nextCode === 46) { // .. Range
+          this.pos += 2; this.col += 2;
+          tokens.push({ type: '..', value: '..', line, col });
           continue;
         }
       }

@@ -256,4 +256,78 @@ print("Chu vi tam giác (tri_c, 3, 4, 5)    =", tri_c(3, 4, 5));
 print("Diện tích tam giác (tri_s, b=6, h=4)=", tri_s(6, 4));
 `,
   },
+  {
+    id: 'modern_v2',
+    name: 'F-Strings, Typing & Destructuring',
+    description: 'String Interpolation (f"...{expr}..."), Gradual Type Annotations (name: string, fn(a: number): number), Array & Dict Destructuring ([a, b] = arr, {x, y} = dict)',
+    code: `// ==============================================================================
+// BLang Next-Gen Innovations Demo (modern_v2.bl)
+// 1. String Interpolation (F-Strings: f"Chào {name}, điểm {score}")
+// 2. Gradual Type Annotations (let x: number = 42, fn(a: number): number)
+// 3. Destructuring Assignment ([a, b] = [10, 20], {name, hp} = hero)
+// ==============================================================================
+
+print("=== 1. STRING INTERPOLATION (F-STRINGS) ===");
+commander = "Kaelen Voss";
+clearance_level = 9;
+core_power = 95.75;
+
+// Interpolation with variables and expressions
+welcome_msg = f"Commander: {commander} | Level: {clearance_level} | Power: {core_power}%";
+print(welcome_msg);
+
+calc_msg = f"Tỷ lệ hiệu suất lõi: {core_power * 1.5}% (Công suất gấp rưỡi)";
+print(calc_msg);
+
+print("");
+print("=== 2. GRADUAL TYPE ANNOTATIONS ===");
+// Type-annotated variable declarations
+let max_energy: number = 1000;
+let protocol_name: string = "Aegis-Protocol-v4";
+let is_shield_engaged: boolean = True;
+
+// Type-annotated functions with parameters and return types
+function calculate_hyper_drive(distance: number, warp_factor: number): number {
+    base_burn = distance * 0.42;
+    multiplier = warp_factor * 1.85;
+    return base_burn + multiplier;
+}
+
+function verify_clearance(agent: string, rank: number): string {
+    return f"Đặc vụ {agent} (Cấp {rank}) đã xác thực thành công.";
+}
+
+travel_cost = calculate_hyper_drive(120, 4);
+auth_status = verify_clearance(commander, clearance_level);
+print(auth_status);
+print(f"Chi phí năng lượng HyperDrive (120 ly, warp 4): {travel_cost} GW");
+
+print("");
+print("=== 3. DESTRUCTURING ASSIGNMENT (ARRAY & DICT) ===");
+// Array destructuring
+coordinates = [108.2022, 16.0544, 45.0];
+[longitude, latitude, altitude] = coordinates;
+print(f"Tọa độ trạm không gian: Kinh độ {longitude}, Vĩ độ {latitude}, Độ cao {altitude} km");
+
+// Quick variable swap via destructuring
+[a, b] = [10, 20];
+print(f"Trước khi swap: a = {a}, b = {b}");
+[a, b] = [b, a];
+print(f"Sau khi swap:   a = {a}, b = {b}");
+
+// Dictionary (Object) destructuring
+hero = {
+    "callsign": "Shadow Hawk",
+    "shield_hp": 850,
+    "firepower": 320,
+    "status": "Ready for orbit"
+};
+
+{callsign, shield_hp, firepower} = hero;
+print(f"Phi thuyền: {callsign} | Khiên phòng thủ: {shield_hp} HP | Hỏa lực: {firepower} MW");
+
+print("");
+print(">>> Tất cả 3 tính năng thế hệ mới đã thực thi 100% chính xác trên BLang Engine!");
+`,
+  },
 ];

@@ -19,12 +19,20 @@ import {
   WhileNode,
   ForNode,
   FunctionDefNode,
+  FunctionParam,
   ReturnNode,
   BreakNode,
   ContinueNode,
   PrintNode,
   ExpressionStatementNode,
+  MatchNode,
+  MatchCaseNode,
+  RangeNode,
+  PipelineNode,
+  InterpolatedStringNode,
+  DestructureNode,
 } from './types';
+import { Lexer } from './lexer';
 
 export class Parser {
   private tokens: Token[];
@@ -135,6 +143,82 @@ export class Parser {
     return { type: 'Block', statements, line: startTok.line, col: startTok.col };
   }
 
+  private isDestructureAhead(openType: '[' | '{', closeType: ']' | '}'): boolean {
+    if (this.currentToken().type !== openType) return false;
+    let depth = 0;
+    let i = this.pos;
+    const len = this.tokens.length;
+    while (i < len) {
+      const t = this.tokens[i].type;
+      if (t === openType) depth++;
+      else if (t === closeType) {
+        depth--;
+        if (depth === 0) {
+          // Check token right after closing bracket
+          if (i + 1 < len && this.tokens[i + 1].type === '=') {
+            return true;
+          }
+          return false;
+        }
+      } else if (t === ';' || t === 'EOF') {
+        return false;
+      }
+      i++;
+    }
+    return false;
+  }
+
+  private parseDestructure(isDeclaration: boolean, line: number, col: number): DestructureNode {
+    const isArray = this.match('[');
+    const isDict = !isArray && this.match('{');
+    if (!isArray && !isDict) {
+      throw {
+        stage: 'parser',
+        message: 'Expected "[" or "{" for destructuring assignment',
+        line,
+        col,
+      };
+    }
+    const names: string[] = [];
+    const closeType = isArray ? ']' : '}';
+
+    if (!this.check(closeType)) {
+      names.push(this.expect('IDENTIFIER').value);
+      while (this.match(',')) {
+        if (this.check(closeType)) break;
+        names.push(this.expect('IDENTIFIER').value);
+      }
+    }
+    this.expect(closeType);
+    this.expect('=');
+    const value = this.parseExpression();
+
+    return {
+      type: 'Destructure',
+      kind: isArray ? 'array' : 'dict',
+      names,
+      value,
+      isDeclaration,
+      line,
+      col,
+    };
+  }
+
+  private parseTypeAnnotation(): string {
+    const tok = this.currentToken();
+    let typeName = String(tok.value || tok.type);
+    this.advance();
+    if (this.match('<')) {
+      typeName += '<' + this.parseTypeAnnotation();
+      while (this.match(',')) {
+        typeName += ', ' + this.parseTypeAnnotation();
+      }
+      this.expect('>');
+      typeName += '>';
+    }
+    return typeName;
+  }
+
   public parseStatement(): ASTNode {
     const tok = this.currentToken();
 
@@ -143,6 +227,33 @@ export class Parser {
     if (tok.type === 'if') return this.parseIf();
     if (tok.type === 'while') return this.parseWhile();
     if (tok.type === 'for') return this.parseFor();
+
+    // Check direct destructuring: [a, b] = arr or {x, y} = dict
+    if (tok.type === '[' && this.isDestructureAhead('[', ']')) {
+      return this.parseDestructure(false, tok.line, tok.col);
+    }
+    if (tok.type === '{' && this.isDestructureAhead('{', '}')) {
+      return this.parseDestructure(false, tok.line, tok.col);
+    }
+
+    // Check direct typed declaration: name: type = expr
+    if (tok.type === 'IDENTIFIER' && this.pos + 1 < this.tokens.length && this.tokens[this.pos + 1].type === ':') {
+      const idTok = this.advance();
+      this.expect(':');
+      const typeAnnotation = this.parseTypeAnnotation();
+      let init: ASTNode | undefined;
+      if (this.match('=')) {
+        init = this.parseExpression();
+      }
+      return {
+        type: 'VarDecl',
+        name: idTok.value,
+        typeAnnotation,
+        initializer: init,
+        line: idTok.line,
+        col: idTok.col,
+      };
+    }
 
     if (tok.type === 'return') {
       this.advance();
@@ -175,6 +286,10 @@ export class Parser {
       return this.parseThrow();
     }
 
+    if (tok.type === 'match') {
+      return this.parseMatch();
+    }
+
     if (tok.type === 'import') {
       this.advance();
       const pathTok = this.currentToken();
@@ -202,9 +317,16 @@ export class Parser {
     return this.parseAssignmentOrExpr();
   }
 
-  private parseVarDecl(): VarDeclNode {
+  private parseVarDecl(): ASTNode {
     const letTok = this.expect('let');
+    if (this.check('[') || this.check('{')) {
+      return this.parseDestructure(true, letTok.line, letTok.col);
+    }
     const idTok = this.expect('IDENTIFIER');
+    let typeAnnotation: string | undefined;
+    if (this.match(':')) {
+      typeAnnotation = this.parseTypeAnnotation();
+    }
     let init: ASTNode | undefined;
     if (this.match('=')) {
       init = this.parseExpression();
@@ -212,6 +334,7 @@ export class Parser {
     return {
       type: 'VarDecl',
       name: idTok.value,
+      typeAnnotation,
       initializer: init,
       line: letTok.line,
       col: letTok.col,
@@ -223,18 +346,37 @@ export class Parser {
     const nameTok = this.expect('IDENTIFIER');
     this.expect('(');
     const params: string[] = [];
+    const paramDetails: FunctionParam[] = [];
     if (!this.check(')')) {
-      params.push(this.expect('IDENTIFIER').value);
+      const pName = this.expect('IDENTIFIER').value;
+      let pType: string | undefined;
+      if (this.match(':')) {
+        pType = this.parseTypeAnnotation();
+      }
+      params.push(pName);
+      paramDetails.push({ name: pName, typeAnnotation: pType });
       while (this.match(',')) {
-        params.push(this.expect('IDENTIFIER').value);
+        const nextName = this.expect('IDENTIFIER').value;
+        let nextType: string | undefined;
+        if (this.match(':')) {
+          nextType = this.parseTypeAnnotation();
+        }
+        params.push(nextName);
+        paramDetails.push({ name: nextName, typeAnnotation: nextType });
       }
     }
     this.expect(')');
+    let returnType: string | undefined;
+    if (this.match(':')) {
+      returnType = this.parseTypeAnnotation();
+    }
     const body = this.parseBlock();
     return {
       type: 'FunctionDef',
       name: nameTok.value,
       parameters: params,
+      paramDetails,
+      returnType,
       body,
       line: fnTok.line,
       col: fnTok.col,
@@ -363,6 +505,52 @@ export class Parser {
     };
   }
 
+  private parseMatch(): MatchNode {
+    const matchTok = this.expect('match');
+    const discriminant = this.parseExpression();
+    this.expect('{');
+    const cases: MatchCaseNode[] = [];
+    let defaultCase: BlockNode | undefined;
+
+    while (!this.check('}') && !this.check('EOF')) {
+      this.consumeSemicolons();
+      if (this.check('}') || this.check('EOF')) break;
+
+      if (this.match('case')) {
+        const caseLine = this.tokens[this.pos - 1].line;
+        const caseCol = this.tokens[this.pos - 1].col;
+        const pattern = this.parseExpression();
+        const body = this.parseBlock();
+        cases.push({
+          type: 'MatchCase',
+          pattern,
+          body,
+          line: caseLine,
+          col: caseCol,
+        });
+      } else if (this.match('default')) {
+        defaultCase = this.parseBlock();
+      } else {
+        throw {
+          stage: 'parser',
+          message: `Expected 'case' or 'default' inside match block, found '${this.currentToken().type}'`,
+          line: this.currentToken().line,
+          col: this.currentToken().col,
+        };
+      }
+      this.consumeSemicolons();
+    }
+    this.expect('}');
+    return {
+      type: 'Match',
+      discriminant,
+      cases,
+      defaultCase,
+      line: matchTok.line,
+      col: matchTok.col,
+    };
+  }
+
   private parseAssignmentOrExpr(): ASTNode {
     const expr = this.parseExpression();
     const tok = this.currentToken();
@@ -397,7 +585,48 @@ export class Parser {
   }
 
   public parseExpression(): ASTNode {
-    return this.parseNullCoalescing();
+    return this.parsePipeline();
+  }
+
+  private parsePipeline(): ASTNode {
+    let left = this.parseRange();
+    while (this.match('|>')) {
+      const opTok = this.tokens[this.pos - 1];
+      const target = this.parsePostfix();
+      if (target.type !== 'Call' && target.type !== 'Identifier') {
+        throw {
+          stage: 'parser',
+          message: `Expected function name or call after '|>', found '${target.type}'`,
+          line: opTok.line,
+          col: opTok.col,
+        };
+      }
+      left = {
+        type: 'Pipeline',
+        left,
+        target: target as CallNode | IdentifierNode,
+        line: opTok.line,
+        col: opTok.col,
+      };
+    }
+    return left;
+  }
+
+  private parseRange(): ASTNode {
+    let left = this.parseNullCoalescing();
+    if (this.match('..')) {
+      const opTok = this.tokens[this.pos - 1];
+      const right = this.parseNullCoalescing();
+      return {
+        type: 'Range',
+        start: left,
+        end: right,
+        inclusive: true,
+        line: opTok.line,
+        col: opTok.col,
+      };
+    }
+    return left;
   }
 
   private parseNullCoalescing(): ASTNode {
@@ -537,6 +766,11 @@ export class Parser {
       return { type: 'Literal', value: tok.value, litType: 'number', line: tok.line, col: tok.col };
     }
 
+    if (tok.type === 'FSTRING') {
+      const fTok = this.advance();
+      return this.parseInterpolatedString(String(fTok.value), fTok.line, fTok.col);
+    }
+
     if (tok.type === 'STRING') {
       this.advance();
       return { type: 'Literal', value: tok.value, litType: 'string', line: tok.line, col: tok.col };
@@ -607,6 +841,94 @@ export class Parser {
       message: `Unexpected token '${tok.type}' (${JSON.stringify(tok.value)})`,
       line: tok.line,
       col: tok.col,
+    };
+  }
+
+  private parseInterpolatedString(raw: string, line: number, col: number): InterpolatedStringNode {
+    const parts: ASTNode[] = [];
+    let cur = 0;
+    const len = raw.length;
+    let textAcc = '';
+
+    while (cur < len) {
+      if (raw[cur] === '{') {
+        if (cur + 1 < len && raw[cur + 1] === '{') {
+          // Escaped {{
+          textAcc += '{';
+          cur += 2;
+          continue;
+        }
+        if (textAcc.length > 0) {
+          parts.push({
+            type: 'Literal',
+            value: textAcc,
+            litType: 'string',
+            line,
+            col,
+          });
+          textAcc = '';
+        }
+        cur++; // skip '{'
+        let exprStr = '';
+        let depth = 1;
+        while (cur < len && depth > 0) {
+          if (raw[cur] === '{') depth++;
+          else if (raw[cur] === '}') {
+            depth--;
+            if (depth === 0) {
+              cur++;
+              break;
+            }
+          }
+          exprStr += raw[cur];
+          cur++;
+        }
+        if (exprStr.trim().length > 0) {
+          try {
+            const subTokens = new Lexer(exprStr).tokenize();
+            const subParser = new Parser(subTokens);
+            const parsedExpr = subParser.parseExpression();
+            parts.push(parsedExpr);
+          } catch {
+            parts.push({
+              type: 'Literal',
+              value: '{' + exprStr + '}',
+              litType: 'string',
+              line,
+              col,
+            });
+          }
+        }
+        continue;
+      } else if (raw[cur] === '}') {
+        if (cur + 1 < len && raw[cur + 1] === '}') {
+          textAcc += '}';
+          cur += 2;
+          continue;
+        }
+        textAcc += raw[cur];
+        cur++;
+      } else {
+        textAcc += raw[cur];
+        cur++;
+      }
+    }
+
+    if (textAcc.length > 0 || parts.length === 0) {
+      parts.push({
+        type: 'Literal',
+        value: textAcc,
+        litType: 'string',
+        line,
+        col,
+      });
+    }
+
+    return {
+      type: 'InterpolatedString',
+      parts,
+      line,
+      col,
     };
   }
 }

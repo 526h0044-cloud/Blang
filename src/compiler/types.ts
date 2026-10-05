@@ -46,6 +46,11 @@ export type TokenType =
   | '/='
   | '%='
   | '??'
+  | '|>'
+  | '..'
+  | 'match'
+  | 'case'
+  | 'default'
   | '=='
   | '!='
   | '<'
@@ -62,6 +67,7 @@ export type TokenType =
   | ';'
   | ':'
   | '.'
+  | 'FSTRING'
   | 'RANDOM_MACRO';
 
 export interface Token {
@@ -96,6 +102,12 @@ export type ASTNodeType =
   | 'Import'
   | 'TryCatch'
   | 'Throw'
+  | 'Range'
+  | 'Pipeline'
+  | 'Match'
+  | 'MatchCase'
+  | 'InterpolatedString'
+  | 'Destructure'
   | 'ExpressionStatement';
 
 export interface BaseASTNode {
@@ -128,6 +140,7 @@ export interface IdentifierNode extends BaseASTNode {
 export interface VarDeclNode extends BaseASTNode {
   type: 'VarDecl';
   name: string;
+  typeAnnotation?: string;
   initializer?: ASTNode;
 }
 
@@ -200,10 +213,17 @@ export interface ForNode extends BaseASTNode {
   body: BlockNode;
 }
 
+export interface FunctionParam {
+  name: string;
+  typeAnnotation?: string;
+}
+
 export interface FunctionDefNode extends BaseASTNode {
   type: 'FunctionDef';
   name: string;
   parameters: string[];
+  paramDetails?: FunctionParam[];
+  returnType?: string;
   body: BlockNode;
 }
 
@@ -247,6 +267,45 @@ export interface ThrowNode extends BaseASTNode {
   expression: ASTNode;
 }
 
+export interface RangeNode extends BaseASTNode {
+  type: 'Range';
+  start: ASTNode;
+  end: ASTNode;
+  inclusive: boolean;
+}
+
+export interface PipelineNode extends BaseASTNode {
+  type: 'Pipeline';
+  left: ASTNode;
+  target: CallNode | IdentifierNode;
+}
+
+export interface MatchCaseNode extends BaseASTNode {
+  type: 'MatchCase';
+  pattern: ASTNode;
+  body: BlockNode;
+}
+
+export interface MatchNode extends BaseASTNode {
+  type: 'Match';
+  discriminant: ASTNode;
+  cases: MatchCaseNode[];
+  defaultCase?: BlockNode;
+}
+
+export interface InterpolatedStringNode extends BaseASTNode {
+  type: 'InterpolatedString';
+  parts: ASTNode[];
+}
+
+export interface DestructureNode extends BaseASTNode {
+  type: 'Destructure';
+  kind: 'array' | 'dict';
+  names: string[];
+  value: ASTNode;
+  isDeclaration?: boolean;
+}
+
 export type ASTNode =
   | ProgramNode
   | BlockNode
@@ -272,6 +331,12 @@ export type ASTNode =
   | ImportNode
   | TryCatchNode
   | ThrowNode
+  | RangeNode
+  | PipelineNode
+  | MatchNode
+  | MatchCaseNode
+  | InterpolatedStringNode
+  | DestructureNode
   | ExpressionStatementNode;
 
 export interface SymbolInfo {

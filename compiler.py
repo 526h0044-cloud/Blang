@@ -130,6 +130,9 @@ class TokenType:
     TRY         = "try"
     CATCH       = "catch"
     THROW       = "throw"
+    MATCH       = "match"
+    CASE        = "case"
+    DEFAULT     = "default"
 
     # Operators
     RANDOM_MACRO = "RANDOM_MACRO"
@@ -145,6 +148,8 @@ class TokenType:
     DIV_ASSIGN  = "/="
     MOD_ASSIGN  = "%="
     NULL_COALESCE = "??"
+    PIPELINE    = "|>"
+    RANGE       = ".."
     EQ          = "=="
     NEQ         = "!="
     LT          = "<"
@@ -193,6 +198,9 @@ KEYWORDS: Dict[str, str] = {
     "try":      TokenType.TRY,
     "catch":    TokenType.CATCH,
     "throw":    TokenType.THROW,
+    "match":    TokenType.MATCH,
+    "case":     TokenType.CASE,
+    "default":  TokenType.DEFAULT,
     "null":     TokenType.NULL,
     "None":     TokenType.NULL,
     "none":     TokenType.NULL,
@@ -434,6 +442,14 @@ class Lexer:
             if two_ch == "??":
                 self.advance(); self.advance()
                 tokens.append(Token(TokenType.NULL_COALESCE, "??", line, col))
+                continue
+            if two_ch == "|>":
+                self.advance(); self.advance()
+                tokens.append(Token(TokenType.PIPELINE, "|>", line, col))
+                continue
+            if two_ch == "..":
+                self.advance(); self.advance()
+                tokens.append(Token(TokenType.RANGE, "..", line, col))
                 continue
 
             if ch == "%" and self.source[self.pos:].startswith("%random"):

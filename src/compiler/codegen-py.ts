@@ -32,6 +32,18 @@ export function sanitizeIdentifierPy(name: string): string {
   return res;
 }
 
+function mapToPyType(t?: string): string {
+  if (!t) return '';
+  const lower = t.toLowerCase();
+  if (lower === 'number' || lower === 'float' || lower === 'int') return 'float';
+  if (lower === 'string' || lower === 'str') return 'str';
+  if (lower === 'boolean' || lower === 'bool') return 'bool';
+  if (lower === 'list') return 'list';
+  if (lower === 'dict') return 'dict';
+  if (lower === 'void') return 'None';
+  return 'any';
+}
+
 export class PythonCodeGenerator {
   private indentLevel = 0;
   private indentStr = '    ';
@@ -229,11 +241,28 @@ export class PythonCodeGenerator {
       case 'VarDecl': {
         const decl = node as VarDeclNode;
         const name = sanitizeIdentifierPy(decl.name);
+        const typeHint = decl.typeAnnotation ? `: ${mapToPyType(decl.typeAnnotation)}` : '';
         if (decl.initializer) {
           const val = this.genExpression(decl.initializer);
-          return `${this.indent()}${name} = ${val}`;
+          return `${this.indent()}${name}${typeHint} = ${val}`;
         }
-        return `${this.indent()}${name} = None`;
+        return `${this.indent()}${name}${typeHint} = None`;
+      }
+
+      case 'Destructure': {
+        const d = node as any;
+        const sanitized = d.names.map(sanitizeIdentifierPy);
+        if (d.kind === 'array') {
+          return `${this.indent()}${sanitized.join(', ')} = ${this.genExpression(d.value)}`;
+        } else {
+          const valExpr = this.genExpression(d.value);
+          const lines = [`${this.indent()}_dict_destruct = ${valExpr}`];
+          for (const name of d.names) {
+            const sName = sanitizeIdentifierPy(name);
+            lines.push(`${this.indent()}${sName} = _dict_destruct.get("${name}", None)`);
+          }
+          return lines.join('\n');
+        }
       }
 
       case 'Assign': {
@@ -246,8 +275,19 @@ export class PythonCodeGenerator {
       case 'FunctionDef': {
         const fn = node as FunctionDefNode;
         const fnName = sanitizeIdentifierPy(fn.name);
-        const params = fn.parameters.map((p) => sanitizeIdentifierPy(p)).join(', ');
-        const hdr = `${this.indent()}def ${fnName}(${params}):`;
+        let params: string;
+        if (fn.paramDetails && fn.paramDetails.length > 0) {
+          params = fn.paramDetails
+            .map((p) => {
+              const pName = sanitizeIdentifierPy(p.name);
+              return p.typeAnnotation ? `${pName}: ${mapToPyType(p.typeAnnotation)}` : pName;
+            })
+            .join(', ');
+        } else {
+          params = fn.parameters.map((p) => sanitizeIdentifierPy(p)).join(', ');
+        }
+        const retHint = fn.returnType ? ` -> ${mapToPyType(fn.returnType)}` : '';
+        const hdr = `${this.indent()}def ${fnName}(${params})${retHint}:`;
         this.indentLevel++;
         const body = this.genBlock(fn.body);
         this.indentLevel--;
@@ -334,6 +374,35 @@ export class PythonCodeGenerator {
         return `${this.indent()}raise Exception(${this.genExpression(th.expression)})`;
       }
 
+      case 'Match': {
+        const m = node as any;
+        const disc = this.genExpression(m.discriminant);
+        const lines: string[] = [`${this.indent()}match ${disc}:`];
+        this.indentLevel++;
+        for (const c of m.cases) {
+          lines.push(`${this.indent()}case ${this.genExpression(c.pattern)}:`);
+          this.indentLevel++;
+          for (const s of c.body.statements) {
+            const g = this.genStatement(s);
+            if (g) lines.push(g);
+          }
+          if (c.body.statements.length === 0) lines.push(`${this.indent()}pass`);
+          this.indentLevel--;
+        }
+        if (m.defaultCase) {
+          lines.push(`${this.indent()}case _:`);
+          this.indentLevel++;
+          for (const s of m.defaultCase.statements) {
+            const g = this.genStatement(s);
+            if (g) lines.push(g);
+          }
+          if (m.defaultCase.statements.length === 0) lines.push(`${this.indent()}pass`);
+          this.indentLevel--;
+        }
+        this.indentLevel--;
+        return lines.join('\n');
+      }
+
       case 'Import': {
         const imp = node as any;
         const mod = imp.modulePath.replace('.bl', '').replace(/[\/\-]/g, '_');
@@ -416,6 +485,41 @@ export class PythonCodeGenerator {
         if (op === 'and') op = 'and';
         else if (op === 'or') op = 'or';
         return `(${left} ${op} ${right})`;
+      }
+
+      case 'Range': {
+        const r = node as any;
+        const start = this.genExpression(r.start);
+        const end = this.genExpression(r.end);
+        return `list(range(int(${start}), int(${end}) + 1))`;
+      }
+
+      case 'Pipeline': {
+        const p = node as any;
+        const left = this.genExpression(p.left);
+        if (p.target.type === 'Identifier') {
+          return `${sanitizeIdentifierPy(p.target.name)}(${left})`;
+        }
+        if (p.target.type === 'Call') {
+          const fn = this.genExpression(p.target.callee);
+          const args = p.target.arguments.map((a: any) => this.genExpression(a));
+          return `${fn}(${[left, ...args].join(', ')})`;
+        }
+        return left;
+      }
+
+      case 'InterpolatedString': {
+        const isNode = node as any;
+        let pyStr = 'f"';
+        for (const part of isNode.parts) {
+          if (part.type === 'Literal' && part.litType === 'string') {
+            pyStr += String(part.value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/{/g, '{{').replace(/}/g, '}}');
+          } else {
+            pyStr += '{' + this.genExpression(part) + '}';
+          }
+        }
+        pyStr += '"';
+        return pyStr;
       }
 
       default:

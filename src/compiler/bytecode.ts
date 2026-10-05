@@ -258,6 +258,48 @@ export class BytecodeCompiler {
         break;
       }
 
+      case 'Match': {
+        const m = node as any;
+        this.compileExpression(m.discriminant);
+        for (let idx = 0; idx < m.cases.length; idx++) {
+          const c = m.cases[idx];
+          this.emit('DUP_TOP', undefined, undefined, 'Duplicate discriminant for case');
+          this.compileExpression(c.pattern);
+          this.emit('COMPARE_EQ');
+          this.emit('JUMP_IF_FALSE', `NEXT_CASE_${idx}`, undefined, 'Jump if pattern does not match');
+          this.emit('POP_TOP', undefined, undefined, 'Pop discriminant if matched');
+          for (const s of c.body.statements) this.compileStatement(s);
+          this.emit('JUMP_ABSOLUTE', 'END_MATCH', undefined, 'Exit match block');
+        }
+        this.emit('POP_TOP', undefined, undefined, 'Pop discriminant');
+        if (m.defaultCase) {
+          for (const s of m.defaultCase.statements) this.compileStatement(s);
+        }
+        break;
+      }
+
+      case 'Destructure': {
+        const d = node as any;
+        this.compileExpression(d.value);
+        for (let i = 0; i < d.names.length; i++) {
+          const name = d.names[i];
+          const slot = this.getOrAllocSlot(name);
+          this.emit('DUP_TOP', undefined, undefined, 'Duplicate source for destructuring');
+          if (d.kind === 'array') {
+            const idxConst = this.addConstant(i);
+            this.emit('LOAD_CONST', idxConst, undefined, `Index ${i}`);
+            this.emit('BINARY_SUBSCR', undefined, undefined, `Get item at index ${i}`);
+          } else {
+            const keyConst = this.addConstant(name);
+            this.emit('LOAD_CONST', keyConst, undefined, `Key "${name}"`);
+            this.emit('BINARY_SUBSCR', undefined, undefined, `Get property "${name}"`);
+          }
+          this.emit('STORE_FAST', slot, slot, `Store destructured into [${slot}] (${name})`);
+        }
+        this.emit('POP_TOP', undefined, undefined, 'Pop destructure source');
+        break;
+      }
+
       default:
         break;
     }
@@ -345,6 +387,45 @@ export class BytecodeCompiler {
           this.compileExpression(entry.value);
         }
         this.emit('BUILD_DICT', dict.entries.length, undefined, `Create map of ${dict.entries.length} pairs`);
+        break;
+      }
+
+      case 'Range': {
+        const r = node as any;
+        this.compileExpression(r.start);
+        this.compileExpression(r.end);
+        this.emit('CALL_FN', 'range_inclusive (2 args)', undefined, 'Evaluate range [start..end]');
+        break;
+      }
+
+      case 'Pipeline': {
+        const p = node as any;
+        if (p.target.type === 'Identifier') {
+          this.compileExpression(p.left);
+          this.emit('CALL_FN', `${p.target.name} (1 args)`, undefined, `Pipeline call ${p.target.name}`);
+        } else if (p.target.type === 'Call') {
+          this.compileExpression(p.left);
+          for (const a of p.target.arguments) {
+            this.compileExpression(a);
+          }
+          const calleeName = p.target.callee.type === 'Identifier' ? p.target.callee.name : 'call';
+          this.emit('CALL_FN', `${calleeName} (${1 + p.target.arguments.length} args)`, undefined, `Pipeline call ${calleeName}`);
+        }
+        break;
+      }
+
+      case 'InterpolatedString': {
+        const isNode = node as any;
+        if (isNode.parts.length === 0) {
+          const emptyIdx = this.addConstant('');
+          this.emit('LOAD_CONST', emptyIdx, undefined, '""');
+          break;
+        }
+        this.compileExpression(isNode.parts[0]);
+        for (let i = 1; i < isNode.parts.length; i++) {
+          this.compileExpression(isNode.parts[i]);
+          this.emit('BINARY_ADD', undefined, undefined, 'Concat interpolated chunk');
+        }
         break;
       }
 
@@ -552,6 +633,13 @@ export class VirtualMachine {
           break;
         }
 
+        case 'DUP_TOP': {
+          const val = this.pop();
+          this.push(val);
+          this.push(val);
+          break;
+        }
+
         case 'BUILD_LIST': {
           const count = Number(inst.arg);
           const list = [];
@@ -713,6 +801,18 @@ export class VirtualMachine {
             case 'values':
               result = typeof args[0] === 'object' && args[0] !== null ? Object.values(args[0]) : [];
               break;
+            case 'range_inclusive': {
+              const start = Number(args[0] ?? 0);
+              const end = Number(args[1] ?? 0);
+              const list: number[] = [];
+              if (start <= end) {
+                for (let i = start; i <= end; i++) list.push(i);
+              } else {
+                for (let i = start; i >= end; i--) list.push(i);
+              }
+              result = list;
+              break;
+            }
             case 'entries':
               result = typeof args[0] === 'object' && args[0] !== null ? Object.entries(args[0]) : [];
               break;

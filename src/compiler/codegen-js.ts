@@ -224,6 +224,18 @@ export class JavaScriptCodeGenerator {
         return `${this.indent()}let ${name} = null;`;
       }
 
+      case 'Destructure': {
+        const d = node as any;
+        const sanitized = d.names.map(sanitizeIdentifierJs);
+        for (const s of sanitized) this.declaredVars.add(s);
+        const kw = d.isDeclaration ? 'let ' : '';
+        if (d.kind === 'array') {
+          return `${this.indent()}${kw}[${sanitized.join(', ')}] = ${this.genExpression(d.value)};`;
+        } else {
+          return `${this.indent()}${kw}{ ${sanitized.join(', ')} } = ${this.genExpression(d.value)};`;
+        }
+      }
+
       case 'Assign': {
         const assign = node as AssignNode;
         const tgt = this.genExpression(assign.target);
@@ -351,6 +363,37 @@ export class JavaScriptCodeGenerator {
         return `${this.indent()}throw ${this.genExpression(th.expression)};`;
       }
 
+      case 'Match': {
+        const m = node as any;
+        const disc = this.genExpression(m.discriminant);
+        const lines: string[] = [`${this.indent()}switch (${disc}) {`];
+        this.indentLevel++;
+        for (const c of m.cases) {
+          lines.push(`${this.indent()}case ${this.genExpression(c.pattern)}: {`);
+          this.indentLevel++;
+          for (const s of c.body.statements) {
+            const g = this.genStatement(s);
+            if (g) lines.push(g);
+          }
+          lines.push(`${this.indent()}break;`);
+          this.indentLevel--;
+          lines.push(`${this.indent()}}`);
+        }
+        if (m.defaultCase) {
+          lines.push(`${this.indent()}default: {`);
+          this.indentLevel++;
+          for (const s of m.defaultCase.statements) {
+            const g = this.genStatement(s);
+            if (g) lines.push(g);
+          }
+          this.indentLevel--;
+          lines.push(`${this.indent()}}`);
+        }
+        this.indentLevel--;
+        lines.push(`${this.indent()}}`);
+        return lines.join('\n');
+      }
+
       case 'Print': {
         const p = node as PrintNode;
         const args = p.arguments.map((a) => this.genExpression(a)).join(', ');
@@ -435,6 +478,41 @@ export class JavaScriptCodeGenerator {
         if (op === 'and') op = '&&';
         else if (op === 'or') op = '||';
         return `(${left} ${op} ${right})`;
+      }
+
+      case 'Range': {
+        const r = node as any;
+        const start = this.genExpression(r.start);
+        const end = this.genExpression(r.end);
+        return `Array.from({ length: Math.max(0, Number(${end}) - Number(${start}) + 1) }, (_, _i) => Number(${start}) + _i)`;
+      }
+
+      case 'Pipeline': {
+        const p = node as any;
+        const left = this.genExpression(p.left);
+        if (p.target.type === 'Identifier') {
+          return `${sanitizeIdentifierJs(p.target.name)}(${left})`;
+        }
+        if (p.target.type === 'Call') {
+          const fn = this.genExpression(p.target.callee);
+          const args = p.target.arguments.map((a: any) => this.genExpression(a));
+          return `${fn}(${[left, ...args].join(', ')})`;
+        }
+        return left;
+      }
+
+      case 'InterpolatedString': {
+        const isNode = node as any;
+        let jsStr = '`';
+        for (const part of isNode.parts) {
+          if (part.type === 'Literal' && part.litType === 'string') {
+            jsStr += String(part.value).replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+          } else {
+            jsStr += '${' + this.genExpression(part) + '}';
+          }
+        }
+        jsStr += '`';
+        return jsStr;
       }
 
       default:

@@ -139,6 +139,8 @@ export const GuideModal: React.FC<GuideModalProps> = ({ onLoadSnippet, onClose }
     { id: 'try-catch', name: '17. Bắt Lỗi Runtime (Try - Catch)', icon: ShieldAlert },
     { id: 'lsp-linter', name: '18. LSP, Multi-error & Linter', icon: Wrench },
     { id: 'best-practices', name: '19. Thực Tiễn Tốt Nhất (Best Practices)', icon: CheckCircle2 },
+    { id: 'innovations', name: '20. Cải Tiến Đột Phá (Pipeline, Range, Match)', icon: Sparkles },
+    { id: 'innovations-v2', name: '21. Cải Tiến Thế Hệ Mới (F-Strings, Typing, Destructuring)', icon: Sparkles },
   ];
 
   const filteredSections = useMemo(() => {
@@ -993,6 +995,183 @@ Chương trình tiếp tục thực thi bình thường mà không bị crash."
                   Tách các hàm tiện ích vào file riêng (như <code className="font-mono text-sky-300">math_lib.bl</code>) và nạp bằng <code className="font-mono text-sky-300">import "math_lib.bl";</code> để tái sử dụng mã hiệu quả.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 20: Modern Innovations (Pipeline, Range, Match-Case) */}
+        <section id="doc-section-innovations" className="space-y-4 pt-6 border-t border-slate-800/80 pb-16">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Chương 20</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Cải Tiến Đột Phá (Modern Language Innovations)</h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            BLang bổ sung bộ ba tính năng cú pháp hiện đại bậc nhất của các ngôn ngữ thế hệ mới (như Elixir, Rust, Python 3.10+, F#):
+          </p>
+
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-indigo-300 flex items-center gap-2">
+                <span>1. Toán tử đường ống (Pipeline Operator: |&gt;)</span>
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Cho phép truyền trực tiếp giá trị của vế trái làm tham số đầu vào cho hàm ở vế phải, loại bỏ hoàn toàn các cấu trúc lồng ngoặc sâu khó đọc.
+              </p>
+              <CodeSnippet
+                code={`function double(n) { return n * 2; }
+function add_five(n) { return n + 5; }
+
+// Nối chuỗi tính toán dạng Pipeline trực quan
+score = 10 |> double |> add_five;
+print("Điểm số tính bằng Pipeline:", score); // 25
+
+name = "  nguyễn văn an  " |> trim |> vi_no_accents |> upper;
+print("Tên chuẩn hóa:", name); // "NGUYEN VAN AN"`}
+                output="Điểm số tính bằng Pipeline: 25\nTên chuẩn hóa: NGUYEN VAN AN"
+                onLoadSnippet={onLoadSnippet}
+              />
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-emerald-300 flex items-center gap-2">
+                <span>2. Toán tử dải số tự nhiên (Range Operator: ..)</span>
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Tự động sinh mảng dãy số từ <code className="text-emerald-400 font-mono">start..end</code>, tối ưu hóa Constant Folding ngay lúc compile nếu 2 đầu mút là số tĩnh.
+              </p>
+              <CodeSnippet
+                code={`// Tạo danh sách dãy số 1..10
+list_numbers = 1..10;
+print("Dãy số:", list_numbers);
+
+// Duyệt vòng lặp for-in cực kỳ ngắn gọn
+sum = 0;
+for (i in 1..5) {
+    sum += i;
+}
+print("Tổng từ 1 đến 5:", sum); // 15`}
+                output="Dãy số: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\nTổng từ 1 đến 5: 15"
+                onLoadSnippet={onLoadSnippet}
+              />
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-sky-300 flex items-center gap-2">
+                <span>3. So khớp mẫu (Pattern Matching: match / case / default)</span>
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Cú pháp kiểm tra nhiều trường hợp rẽ nhánh trực quan, tự động transpile ra cấu trúc <code className="text-sky-300 font-mono">match-case</code> của Python 3.10+ và <code className="text-sky-300 font-mono">switch</code> của JavaScript ES6+.
+              </p>
+              <CodeSnippet
+                code={`status = 404;
+
+match status {
+    case 200 {
+        print("Trạng thái: Thành công");
+    }
+    case 404 {
+        print("Trạng thái: Không tìm thấy tài nguyên");
+    }
+    case 500 {
+        print("Trạng thái: Lỗi máy chủ");
+    }
+    default {
+        print("Trạng thái không xác định");
+    }
+}`}
+                output="Trạng thái: Không tìm thấy tài nguyên"
+                onLoadSnippet={onLoadSnippet}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Section 21: Next-Gen Innovations (F-Strings, Typing, Destructuring) */}
+        <section id="doc-section-innovations-v2" className="space-y-4 pt-6 border-t border-slate-800/80">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">21. Cải Tiến Thế Hệ Mới (F-Strings, Type Annotations, Destructuring)</h2>
+              <p className="text-xs text-slate-400">
+                Ba tính năng nâng cấp cốt lõi: Định dạng chuỗi nhúng biến, Khai báo kiểu tùy chọn, và Phân rã mảng / đối tượng.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-pink-300 flex items-center gap-2">
+                <span>1. String Interpolation (F-Strings: f"Chào &#123;name&#125;")</span>
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Cho phép nhúng trực tiếp biến và biểu thức toán học vào chuỗi thông qua tiền tố <code className="text-pink-300 font-mono">f"..."</code> hoặc dấu backtick <code className="text-pink-300 font-mono">`...`</code>. Compiler tự động tối ưu hóa và sinh ra mã Python f-strings và JS template literals.
+              </p>
+              <CodeSnippet
+                code={`hero_name = "Aura Knight";
+level = 12;
+hp = 450.5;
+
+msg = f"Chiến binh {hero_name} (Cấp {level}) hiện có {hp} HP.";
+print(msg);
+
+calc = f"Hiệu suất sau cường hóa (+50%): {hp * 1.5} HP";
+print(calc);`}
+                output="Chiến binh Aura Knight (Cấp 12) hiện có 450.5 HP.\nHiệu suất sau cường hóa (+50%): 675.75 HP"
+                onLoadSnippet={onLoadSnippet}
+              />
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-indigo-300 flex items-center gap-2">
+                <span>2. Khai Báo Kiểu Tùy Chọn (Gradual Type Annotations)</span>
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Bổ sung type hints tương tự TypeScript / Python Typing (<code className="text-indigo-300 font-mono">let x: number = 42</code>, <code className="text-indigo-300 font-mono">function fn(a: number, b: string): number</code>). Semantic Analyzer ghi nhận kiểu vào Symbol Table và transpile thành Type Hints chuẩn của Python 3.12.
+              </p>
+              <CodeSnippet
+                code={`let energy: number = 1000;
+let agent_id: string = "Nova-01";
+let is_ready: boolean = True;
+
+function calculate_warp(dist: number, factor: number): number {
+    return dist * 0.42 + factor * 1.85;
+}
+
+cost = calculate_warp(100, 4);
+print(f"Tiêu hao năng lượng: {cost} GW cho phi thuyền {agent_id}");`}
+                output="Tiêu hao năng lượng: 49.4 GW cho phi thuyền Nova-01"
+                onLoadSnippet={onLoadSnippet}
+              />
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <h3 className="text-sm font-bold text-emerald-300 flex items-center gap-2">
+                <span>3. Phân Rã Dữ Liệu (Destructuring Assignment: Array &amp; Dict)</span>
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Trích xuất nhanh các phần tử từ danh sách hoặc từ điển vào các biến riêng lẻ với cú pháp <code className="text-emerald-300 font-mono">[a, b] = arr</code> hoặc <code className="text-emerald-300 font-mono">&#123;key1, key2&#125; = dict</code>.
+              </p>
+              <CodeSnippet
+                code={`// 1. Phân rã mảng (Array destructuring)
+coords = [108.20, 16.05, 45.0];
+[lng, lat, alt] = coords;
+print(f"Kinh độ: {lng}, Vĩ độ: {lat}, Độ cao: {alt} km");
+
+// 2. Tráo đổi giá trị siêu tốc
+[x, y] = [10, 20];
+[x, y] = [y, x];
+print(f"Sau khi swap: x = {x}, y = {y}");
+
+// 3. Phân rã Dict
+player = {"user": "Kaelen", "score": 9800, "rank": 1};
+{user, score, rank} = player;
+print(f"Người chơi {user} đạt hạng {rank} với {score} điểm.");`}
+                output="Kinh độ: 108.2, Vĩ độ: 16.05, Độ cao: 45 km\nSau khi swap: x = 20, y = 10\nNgười chơi Kaelen đạt hạng 1 với 9800 điểm."
+                onLoadSnippet={onLoadSnippet}
+              />
             </div>
           </div>
         </section>

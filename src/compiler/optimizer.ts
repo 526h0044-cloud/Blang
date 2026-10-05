@@ -49,6 +49,14 @@ export class ASTOptimizer {
         };
       }
 
+      case 'Destructure': {
+        const d = node as any;
+        return {
+          ...d,
+          value: this.optimize(d.value),
+        };
+      }
+
       case 'Assign': {
         const assign = node as AssignNode;
         return {
@@ -255,6 +263,107 @@ export class ASTOptimizer {
         }
 
         return { ...bin, left, right };
+      }
+
+      case 'Match': {
+        const m = node as any;
+        return {
+          ...m,
+          discriminant: this.optimize(m.discriminant),
+          cases: m.cases.map((c: any) => ({
+            ...c,
+            pattern: this.optimize(c.pattern),
+            body: this.optimize(c.body) as BlockNode,
+          })),
+          defaultCase: m.defaultCase ? (this.optimize(m.defaultCase) as BlockNode) : undefined,
+        };
+      }
+
+      case 'Pipeline': {
+        const p = node as any;
+        const left = this.optimize(p.left);
+        const target = this.optimize(p.target);
+
+        // Desugar pipeline into CallNode: a |> f -> f(a), a |> f(b) -> f(a, b)
+        this.foldedCount++;
+        if (target.type === 'Identifier') {
+          return {
+            type: 'Call',
+            callee: target,
+            arguments: [left],
+            line: p.line,
+            col: p.col,
+          };
+        }
+        if (target.type === 'Call') {
+          const call = target as CallNode;
+          return {
+            type: 'Call',
+            callee: call.callee,
+            arguments: [left, ...call.arguments],
+            line: p.line,
+            col: p.col,
+          };
+        }
+        return p;
+      }
+
+      case 'Range': {
+        const r = node as any;
+        const start = this.optimize(r.start);
+        const end = this.optimize(r.end);
+
+        // Constant fold small numerical ranges: e.g. 1..5 -> [1, 2, 3, 4, 5]
+        if (start.type === 'Literal' && end.type === 'Literal') {
+          const sLit = start as LiteralNode;
+          const eLit = end as LiteralNode;
+          if (sLit.litType === 'number' && eLit.litType === 'number') {
+            const sVal = Math.floor(sLit.value);
+            const eVal = Math.floor(eLit.value);
+            const span = eVal - sVal;
+            if (span >= 0 && span <= 100) {
+              this.foldedCount++;
+              const elements: LiteralNode[] = [];
+              for (let i = sVal; i <= eVal; i++) {
+                elements.push({
+                  type: 'Literal',
+                  value: i,
+                  litType: 'number',
+                  line: r.line,
+                  col: r.col,
+                });
+              }
+              return {
+                type: 'List',
+                elements,
+                line: r.line,
+                col: r.col,
+              };
+            }
+          }
+        }
+        return { ...r, start, end };
+      }
+
+      case 'InterpolatedString': {
+        const isNode = node as any;
+        const parts = isNode.parts.map((p: any) => this.optimize(p));
+        const allLiterals = parts.every((p: any) => p.type === 'Literal');
+        if (allLiterals && parts.length > 1) {
+          this.foldedCount++;
+          const combined = parts.map((p: any) => String(p.value)).join('');
+          return {
+            type: 'Literal',
+            value: combined,
+            litType: 'string',
+            line: isNode.line,
+            col: isNode.col,
+          };
+        }
+        return {
+          ...isNode,
+          parts,
+        };
       }
 
       default:

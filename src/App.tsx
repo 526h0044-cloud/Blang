@@ -232,13 +232,79 @@ print(">>> Simulation finished. Final HP remaining:", _cur_hp);
     name: 'test_error.bl',
     content: PRESETS[1].code,
   },
+  {
+    name: 'modern_features.bl',
+    content: `// ==============================================================================
+// BLang Modern Language Innovations Demo (modern_features.bl)
+// Pipeline Operator |>, Native Range 1..10, Pattern Matching match/case
+// ==============================================================================
+
+print("=== 1. PIPELINE OPERATOR (|>) ===");
+// Chaining transformations cleanly without deeply nested function calls
+function double_it(n) { return n * 2; }
+function add_five(n) { return n + 5; }
+
+result = 10 |> double_it |> add_five;
+print("Pipeline calculation: 10 |> double_it |> add_five =", result);
+
+// Chaining on strings & arrays
+text = "  blang next-gen language  " |> trim |> upper;
+print("Chained string: '  blang next-gen language  ' |> trim |> upper =", text);
+
+print("");
+print("=== 2. NATIVE RANGE OPERATOR (..) ===");
+// Native range generation: 1..10 produces [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+numbers = 1..10;
+print("Range 1..10 =", numbers);
+
+total = 0;
+for (i in 1..5) {
+    total += i;
+    print("Loop iteration:", i, "| Cumulative sum:", total);
+}
+print("Sum of 1..5 =", total);
+
+print("");
+print("=== 3. PATTERN MATCHING (match / case / default) ===");
+// Clean pattern matching replacing long if/elseif ladders
+http_codes = [200, 404, 500, 418];
+
+for (code in http_codes) {
+    match code {
+        case 200 {
+            print("Status", code, "-> [OK] Yêu cầu thành công");
+        }
+        case 404 {
+            print("Status", code, "-> [Not Found] Không tìm thấy tài nguyên");
+        }
+        case 500 {
+            print("Status", code, "-> [Internal Error] Lỗi máy chủ nội bộ");
+        }
+        default {
+            print("Status", code, "-> [Special/Unknown] Trạng thái khác");
+        }
+    }
+}
+`,
+  },
+  {
+    name: 'modern_v2.bl',
+    content: PRESETS.find((p) => p.id === 'modern_v2')?.code || '',
+  },
 ];
 
 export default function App() {
   const [activeNav, setActiveNav] = useState<'workbench' | 'repl' | 'guide' | 'python-source' | 'metrics'>('workbench');
   const [files, setFiles] = useState<BLangFile[]>(INITIAL_FILES);
-  const [activeFileName, setActiveFileName] = useState<string>('main.bl');
-  const [openTabs, setOpenTabs] = useState<string[]>(['main.bl', 'geometry_math.bl', 'math_lib.bl', 'game_engine.bl']);
+  const [activeFileName, setActiveFileName] = useState<string>('modern_v2.bl');
+  const [openTabs, setOpenTabs] = useState<string[]>([
+    'modern_v2.bl',
+    'main.bl',
+    'modern_features.bl',
+    'geometry_math.bl',
+    'math_lib.bl',
+    'game_engine.bl',
+  ]);
   const [showExplorer, setShowExplorer] = useState(true);
   const [activeStageTab, setActiveStageTab] = useState<'console' | 'runtime' | 'metrics' | 'codegen' | 'ast' | 'symbols' | 'tokens'>('console');
   const [presetId, setPresetId] = useState<string>('comprehensive');
@@ -543,6 +609,8 @@ export default function App() {
                       onSelectPreset={handleSelectPreset}
                       currentPresetId={presetId}
                       errorLine={result.error?.line}
+                      errorMessage={result.error?.message}
+                      errorStage={result.error?.stage}
                       activeFileName={activeFileName}
                       openFiles={openTabs}
                       onSelectTab={handleSelectFile}
